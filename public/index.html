@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部落防災 AI 協助系統 | LOCAL EM-NET</title>
+    <!-- Favicon & 行動裝置主畫面圖示 -->
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="logo.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="部落防災">
+    
+    <link rel="stylesheet" href="style.css?v=2.2.8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase 相容版 SDK (Compat SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <!-- 引入 Chart.js 圖表庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="modal-open">
+    <!-- 迎賓開場遮罩 -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-content">
+            <img src="logo.png" alt="凱芳智能管理" class="splash-logo">
+            <h1 class="splash-title">凱芳智能管理</h1>
+            <p class="splash-subtitle">KaiFang Intelligent Management Co., Ltd.</p>
+            <div class="splash-loader"></div>
+        </div>
+        <!-- 底部版權宣告 -->
+        <div class="splash-copyright">@凱芳智能管理顧問企業社   版權所有</div>
+    </div>
+
+    <!-- 登入與註冊遮罩 (全螢幕) -->
+    <div class="auth-screen" id="authScreen">
+        <div class="auth-box glass-bg-modal">
+            <!-- 登入畫面 -->
+            <div id="loginView" class="auth-view">
+                <h2>系統登入 Login</h2>
+                <p class="auth-subtitle">請輸入您的帳密以進入部落防災系統</p>
+                <div class="setting-item">
+                    <label for="loginUsername">帳號 (Username)：</label>
+                    <input type="text" id="loginUsername" placeholder="輸入英數字帳號..." autocomplete="username">
+                </div>
+                <div class="setting-item">
+                    <label for="loginPassword">密碼 (Password)：</label>
+                    <input type="password" id="loginPassword" placeholder="輸入密碼..." autocomplete="current-password">
+                </div>
+                <button class="btn btn-accent btn-full" id="btnLoginSubmit" style="margin-top: 1rem;">登入</button>
+                <div class="auth-footer-links">
+                    <span>沒有帳號嗎？ </span><a href="javascript:void(0)" id="linkToSignup">立即註冊帳號</a>
+                </div>
+            </div>
+
+            <!-- 註冊畫面 -->
+            <div id="signupView" class="auth-view hidden">
+                <h2>帳號註冊 Sign Up</h2>
+                <p class="auth-subtitle">請填寫完整註冊資料並送出以供審核</p>
+                <div class="auth-grid">
+                    <!-- 帳密資料 -->
+                    <div class="auth-column">
+                        <h3>🔑 帳密設定</h3>
+                        <div class="setting-item">
+                            <label for="signupUsername">帳號 (英數至少8位)：</label>
+                            <input type="text" id="signupUsername" placeholder="輸入英數字至少8位..." autocomplete="username">
+                        </div>
+                        <div class="setting-item">
+                            <label for="signupPassword">密碼 (英數至少8位)：</label>
+                            <input type="password" id="signupPassword" placeholder="英文加數字至少8位..." autocomplete="new-password">
+                        </div>
+                        <div class="setting-item">
+                            <label for="signupConfirmPassword">確認密碼：</label>
+                            <input type="password" id="signupConfirmPassword" placeholder="再次確認密碼..." autocomplete="new-password">
+                        </div>
+                    </div>
+                    <!-- 申請人資料 -->
+                    <div class="auth-column">
+                        <h3>📋 申請人資料</h3>
+                        <div class="setting-item">
+                            <label for="signupName">姓名 (Name)：</label>
+                            <input type="text" id="signupName" placeholder="輸入您的真實姓名...">
+                        </div>
+                        <div class="setting-item">
+                            <label for="signupPhone">連絡電話 (Phone)：</label>
+                            <input type="text" id="signupPhone" placeholder="例如：0912345678...">
+                        </div>
+                        <div class="setting-item">
+                            <label for="signupJob">工作職稱 (Job)：</label>
+                            <input type="text" id="signupJob" placeholder="例如：自主防災專員...">
+                        </div>
+                        <div class="setting-item">
+                            <label for="signupCounty">所屬縣市：</label>
+                            <input type="text" id="signupCounty" placeholder="例如：台東縣...">
+                        </div>
+                        <div class="setting-item">
+                            <label for="signupTown">所屬鄉鎮：</label>
+                            <input type="text" id="signupTown" placeholder="例如：達仁鄉...">
+                        </div>
+                        <div class="setting-item">
+                            <label for="signupVillage">村落名稱：</label>
+                            <input type="text" id="signupVillage" placeholder="例如：南興村...">
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-accent btn-full" id="btnSignupSubmit" style="margin-top: 1rem;">送出註冊申請</button>
+                <div class="auth-footer-links">
+                    <span>已有帳號？ </span><a href="javascript:void(0)" id="linkToLogin">返回登入</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理者後台面板 (全螢幕) -->
+    <div class="admin-panel hidden" id="adminPanel">
+        <div class="admin-container">
+            <header class="admin-header">
+                <div class="logo-area">
+                    <div class="logo-pulse" style="background-color: var(--color-warning); box-shadow: 0 0 12px var(--color-warning);"></div>
+                    <h1>部落防災系統 - 管理者後台</h1>
+                </div>
+                <div class="admin-meta">
+                    <span>當前管理者：<strong id="adminNameDisplay">讀取中...</strong></span>
+                    <button class="btn btn-outline" id="btnBackToDashboard" style="border-color: var(--color-success); color: var(--color-success);">💻 返回系統前台</button>
+                    <button class="btn btn-outline btn-sim" id="btnAdminLogout" style="background: rgba(230, 57, 70, 0.1); border-color: rgba(230, 57, 70, 0.3); color: #f87171;">登出</button>
+                </div>
+            </header>
+
+            <div class="admin-content-grid">
+                <!-- 左側選單 -->
+                <aside class="admin-sidebar card">
+                    <button class="admin-menu-btn active" id="btnTabUsers">👥 用戶帳號管理</button>
+                    <button class="admin-menu-btn" id="btnTabKeys">⚙️ 系統與 API 設定</button>
+                    <button class="admin-menu-btn" id="btnTabPresence">🟢 連線狀態監控</button>
+                </aside>
+
+                <!-- 右側主內容區 -->
+                <main class="admin-main-area">
+                    <!-- Tab 1: 用戶帳號管理 -->
+                    <div class="admin-tab-view card" id="tabViewUsers">
+                        <div class="card-header" style="border-bottom: 1px solid var(--border-glass);">
+                            <h2>👥 用戶帳號審核與管理</h2>
+                            <span class="sensor-badge" id="userCountBadge">全部用戶：0 人</span>
+                        </div>
+                        <div class="card-body scroll-table-container">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>帳號</th>
+                                        <th>姓名</th>
+                                        <th>電話</th>
+                                        <th>職稱 / 轄區</th>
+                                        <th>註冊時間</th>
+                                        <th>狀態</th>
+                                        <th>管理操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="userTableBody">
+                                    <tr>
+                                        <td colspan="7" class="text-center" style="padding: 2rem; color: var(--color-text-muted);">載入用戶資料中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: 系統與 API 設定 -->
+                    <div class="admin-tab-view card hidden" id="tabViewKeys">
+                        <div class="card-header" style="border-bottom: 1px solid var(--border-glass);">
+                            <h2>⚙️ 系統與 API 金鑰設定 (寫入 Firebase)</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="setting-item">
+                                <label for="cwaApiKey">中央氣象署 API 授權碼 (CWA API Key)：</label>
+                                <input type="password" id="cwaApiKey" class="custom-input" placeholder="輸入 CWA-XXXXXX 授權碼..." style="width: 100%; background: #08090c; border: 1px solid rgba(255, 255, 255, 0.1); color: #ffffff; padding: 0.75rem; border-radius: 8px;">
+                            </div>
+                            <div class="setting-item" style="margin-top: 1.5rem;">
+                                <label for="geminiApiKey">Gemini API 金鑰 (用於雲端真實對話)：</label>
+                                <input type="password" id="geminiApiKey" class="custom-input" placeholder="輸入 AIzaSy... 金鑰..." style="width: 100%; background: #08090c; border: 1px solid rgba(255, 255, 255, 0.1); color: #ffffff; padding: 0.75rem; border-radius: 8px;">
+                            </div>
+                            <button class="btn btn-accent btn-full" id="btnSaveSettings" style="margin-top: 2rem;">💾 儲存金鑰設定</button>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: 用戶與村落連線狀態監控 -->
+                    <div class="admin-tab-view card hidden" id="tabViewPresence">
+                        <div class="card-header" style="border-bottom: 1px solid var(--border-glass); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                            <h2>🟢 用戶與村落連線狀態監控</h2>
+                            <span class="sensor-badge" id="onlineCountBadge">在線用戶：0 / 0 人</span>
+                        </div>
+                        <div class="card-body">
+                            <div style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 1rem; line-height: 1.4;">
+                                💡 <b>連線判定規則：</b>開啟防災系統前台且運作中，每 30 秒會回傳一次心跳。若超過 60 秒未回傳心跳（例如關閉視窗、離線或斷網），系統會自動判定為離線（紅燈）。當村落內有至少一位在線使用者時，該村落即亮起綠燈。
+                            </div>
+                            
+                            <!-- 村落狀態看板 -->
+                            <div class="presence-village-grid" id="presenceVillageGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                                <div class="text-center" style="grid-column: 1/-1; padding: 2rem; color: var(--color-text-muted);">正在計算村落狀態...</div>
+                            </div>
+                            
+                            <h3 style="font-size: 1rem; margin-bottom: 0.75rem; border-left: 3px solid var(--color-success); padding-left: 0.5rem; color: #ffffff;">📋 詳細用戶連線列表</h3>
+                            <div class="scroll-table-container">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>使用者帳號</th>
+                                            <th>姓名</th>
+                                            <th>村落轄區</th>
+                                            <th>電話 / 職稱</th>
+                                            <th>連線狀態</th>
+                                            <th>最後回傳心跳時間</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="presenceTableBody">
+                                        <tr>
+                                            <td colspan="6" class="text-center" style="padding: 2rem; color: var(--color-text-muted);">載入連線狀態中...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-bg"></div>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="header-main">
+                <div class="logo-area">
+                    <div class="logo-pulse"></div>
+                    <h1>部落防災 AI 協助系統</h1>
+                    <span class="version-tag">v2.2 (Panoramic Live Control)</span>
+                </div>
+                <div class="status-badges">
+                    <button class="btn btn-accent" id="btnTyphoonData" style="background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); border: none; box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);">
+                        🌀 一鍵取得颱風資料
+                    </button>
+                    <button class="btn btn-outline" id="btnOpenCctv" style="border-color: var(--color-cyan); color: var(--color-cyan);">
+                        🎥 即時監控 CCTV
+                    </button>
+                    <button class="btn btn-outline" id="btnOpenResidents" style="border-color: var(--color-cyan); color: var(--color-cyan);">
+                        👥 保全戶資料庫
+                    </button>
+                    <button class="btn btn-outline" id="btnOpenShelters" style="border-color: var(--color-cyan); color: var(--color-cyan);">
+                        ⛺ 收容中心管理
+                    </button>
+                    <button class="btn btn-outline" id="btnOpenRainfallGauge" style="border-color: var(--color-cyan); color: var(--color-cyan);">
+                        📊 雨量筒偵測資料
+                    </button>
+                    <!-- 用戶帳號資訊與登出列 -->
+                    <div class="user-profile-badge" id="userProfileBadge" style="display: none; align-items: center; gap: 0.75rem;">
+                        <span class="user-name" id="profileUserName" style="font-weight: 600;">讀取中</span>
+                        <span class="user-role badge-mini" id="profileUserRole" style="background: rgba(255, 255, 255, 0.08); padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">USER</span>
+                        <button class="btn btn-outline" id="btnAdminPortal" style="display: none; padding: 0.35rem 0.65rem; font-size: 0.75rem; border-color: var(--color-warning); color: var(--color-warning);">
+                            ⚙️ 後台管理
+                        </button>
+                        <button class="btn btn-outline btn-sim" id="btnLogout" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; background: rgba(230, 57, 70, 0.1); border-color: rgba(230, 57, 70, 0.25); color: #f87171;">
+                            登出
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="header-meta">
+                <div class="meta-item clock">
+                    <span class="label">系統時間</span>
+                    <span class="value" id="systemTime">2026-05-22 14:00:00</span>
+                </div>
+                <div class="header-status-badges" style="display: flex; gap: 0.5rem; align-items: center; margin-left: auto; flex-wrap: wrap;">
+                    <div class="badge wan-status badge-sm" id="wanStatus" style="margin: 0;">
+                        <!-- Dynamic content via JS -->
+                        偵測聯外網路中...
+                    </div>
+                    <div class="badge lan-status online badge-sm" id="lanStatus" style="margin: 0;">
+                        <svg class="icon animate-pulse" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 12 10 10-4.48 10-12S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                        無線電狀況：正常
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <main class="dashboard-grid">
+            
+            <!-- LIVE WINDY RADAR CARD (FULL-WIDTH TOP) -->
+            <div class="card satellite-card full-width">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <div class="title-with-icon">
+                        <svg class="card-icon text-cyan" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 12 10 10-4.48 10-12S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.53c-.26-.81-1-1.4-1.9-1.4h-1v-3c0-.55-.45-1-1-1h-6v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z"/>
+                        </svg>
+                        <h2>即時颱風 Windy 雷達圖</h2>
+                    </div>
+                    <div class="windy-locate-controls" style="display: flex; gap: 0.5rem; align-items: center;">
+                        <span id="windyLocateStatus" style="font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-right: 0.25rem;"></span>
+                        <button id="btnWindyMyLocation" class="btn btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.3); color: var(--color-cyan); border-radius: 6px; cursor: pointer;">📡 依我位置</button>
+                        <button id="btnWindyDefault" class="btn btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ffffff; border-radius: 6px; cursor: pointer;">🏠 南興村</button>
+                    </div>
+                </div>
+                <div class="card-body satellite-body" style="padding: 0;">
+                    <div class="satellite-img-container" style="height: 480px; border-radius: 0 0 16px 16px; border: none; overflow: hidden; position: relative;">
+                        <!-- Windy live iframe map -->
+                        <iframe id="satelliteImg" src="https://embed.windy.com/embed2.html?lat=21.852&lon=121.694&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=true" style="width: 100%; height: 100%; border: none;"></iframe>
+                        
+                        <!-- High-tech radar fallback animation (Shows up automatically when offline) -->
+                        <div class="satellite-radar-fallback" id="satelliteFallback" style="display: none;">
+                            <div class="radar-scan">
+                                <div class="radar-beam"></div>
+                                <div class="typhoon-eye animate-spin-slow">
+                                    <svg class="typhoon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z" stroke-dasharray="3 3" opacity="0.3"></path>
+                                        <path d="M12 7a5 5 0 0 1 5 5c0 2.761-2.239 5-5 5s-5-2.239-5-5 2.239-5 5-5z" stroke-dasharray="2 2" opacity="0.5"></path>
+                                        <path d="M12 10a2 2 0 1 1-2 2 2 2 0 0 1 2-2z" fill="#06b6d4"></path>
+                                        <path d="M12 12c-2 4-5 5-8 4 3-1 4-3 5-4zm0 0c2-4 5-5 8-4-3 1-4 3-5 4z" fill="rgba(6, 182, 212, 0.6)"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <span class="fallback-text">📡 聯外網路中斷，已啟動備援微波雷達模擬監控系統...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OFFLINE AI COPILOT -->
+            <div class="card copilot-card">
+                <div class="card-header">
+                    <div class="title-with-icon">
+                        <div class="ai-avatar-pulse">
+                            <svg class="card-icon text-accent" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
+                        </div>
+                        <div>
+                            <h2>離線防災 AI 助理</h2>
+                            <p class="sub-text">晶片端 Llama-3-8B 減災特化版 (離線本地運作)</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline btn-sim" id="btnOpenTemplateModal" style="font-size: 0.7rem; padding: 0.25rem 0.5rem; border-color: var(--color-accent); color: var(--color-accent); margin-right: 0.75rem;">
+                        ✨ 自訂離線模板
+                    </button>
+                    <span class="ai-badge" id="aiModeBadge">LOCAL MODEL</span>
+                </div>
+                <div class="card-body chat-body">
+                    <div class="chat-container" id="chatContainer">
+                        <div class="message system-msg" id="aiSystemInstruction">
+                            系統指示：當前已進入「離線模式」，AI 已切換至本地資料庫，可調用資料庫內預設資料解答問題。
+                        </div>
+                        <div class="message bot-msg">
+                            <div class="msg-author">AI 減災助理</div>
+                            <div class="msg-content" id="aiWelcomeMessage">
+                                您好，我是部落防災 AI 協助系統的智慧助理。目前外部網路已中斷，但我擁有完整的本地防災知識庫、緊急救護指南以及族語廣播生成工具。請隨時向我提問或點選下方快捷問題
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Suggestion Prompts -->
+                    <div class="chat-suggestions">
+                        <button class="suggest-btn" data-question="如果溪水變混濁，且聽到沉悶的轟鳴聲，該怎麼做？">
+                            🚨 溪水混濁與山鳴應變
+                        </button>
+                        <button class="suggest-btn" data-question="幫我寫一段南興村國語的「緊急撤離廣播詞」">
+                            🗣️ 南興村國語撤離廣播
+                        </button>
+                        <button class="suggest-btn" data-question="部落的柴油發電機發動不起來，有什麼基本的排查步驟？">
+                            ⚙️ 發電機故障排查
+                        </button>
+                        <button class="suggest-btn" data-question="如果有人被落石砸傷出血，手邊只有緊急急救包，該如何處理？">
+                            🩹 創傷急救處置
+                        </button>
+                    </div>
+
+                    <!-- Chat Input -->
+                    <div class="chat-input-area">
+                        <input type="text" id="chatInput" placeholder="請輸入您的防災問題..." autocomplete="off">
+                        <button id="btnSend" class="btn btn-accent">
+                            送出
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WARNING ALERT PANEL -->
+            <div class="card warning-card">
+                <div class="card-header">
+                    <div class="title-with-icon">
+                        <svg class="card-icon text-success" id="warningHeaderIcon" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 12 10 10-4.48 10-12S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                        </svg>
+                        <h2>警示告警系統</h2>
+                    </div>
+                    <span class="sensor-badge" style="padding: 0.15rem 0.35rem; display: flex; align-items: center; gap: 0.25rem;">
+                        📡 監控測站：
+                        <select id="alertStationSelect" style="background: transparent; border: none; color: var(--color-cyan); font-weight: 600; font-size: 0.75rem; cursor: pointer; outline: none; padding: 0;">
+                            <option value="C0AC40|山豬窟" style="background:#08090c; color:#ffffff;">山豬窟 (C0AC40)</option>
+                            <option value="46762|大武" style="background:#08090c; color:#ffffff;">大武 (46762)</option>
+                            <option value="C0S730|達仁" style="background:#08090c; color:#ffffff;">達仁 (C0S730)</option>
+                            <option value="C0S810|安朔" style="background:#08090c; color:#ffffff;">安朔 (C0S810)</option>
+                            <option value="C0S830|森永" style="background:#08090c; color:#ffffff;">森永 (C0S830)</option>
+                            <option value="custom" style="background:#08090c; color:#ffffff;">-- 自訂測站 --</option>
+                        </select>
+                    </span>
+                </div>
+                <div class="card-body warning-body">
+                    <!-- Warning Status Banner -->
+                    <div class="warning-banner status-safe" id="warningBanner">
+                        <div class="water-waves">
+                            <div class="wave"></div>
+                            <div class="wave wave-two"></div>
+                            <div class="wave wave-three"></div>
+                        </div>
+                        <div class="warning-indicator-pulse" id="warningPulse"></div>
+                        <div class="warning-text-group">
+                            <span class="warning-title" id="warningLevelTitle">安全常態</span>
+                            <span class="warning-desc" id="warningLevelDesc">目前累積降雨量在安全範圍內，請持續監控。</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Rainfall Stats -->
+                    <div class="warning-stats">
+                        <div class="stat-box">
+                            <span class="stat-lbl">山豬窟 24H 累積降雨</span>
+                            <div class="stat-val" id="warningRainVal">0.0 <span class="unit">mm</span></div>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-lbl">告警臨界指引</span>
+                            <div class="threshold-info">
+                                <div class="threshold-line">
+                                    <span class="badge-mini badge-orange">黃色警戒</span> &ge; 300 mm
+                                </div>
+                                <div class="threshold-line">
+                                    <span class="badge-mini badge-red">紅色警戒</span> &ge; 450 mm
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Actions & Timer -->
+                    <div class="warning-actions-area">
+                        <div class="timer-info">
+                            <span class="lbl">下次自動抓取雨量倒數</span>
+                            <span class="val" id="warningTimeText">下次自動更新：59 分 59 秒</span>
+                        </div>
+                        <button class="btn btn-outline btn-full" id="btnWarningRefresh">🔄 立即重新整理數據</button>
+                        <button class="btn btn-full btn-outline" id="btnSilenceAlarm" disabled style="margin-top: 0.5rem;">🔕 關閉警報音</button>
+                    </div>
+
+                    <!-- Simulation Controls -->
+                    <div class="simulation-area">
+                        <span class="lbl-main">防汛警報系統連動測試 (模擬雨量)：</span>
+                        <div class="simulation-buttons">
+                            <button class="btn btn-outline btn-sim" id="btnSimSafe">🟢 恢復常態 (15mm)</button>
+                            <button class="btn btn-outline btn-sim" id="btnSimYellow">🟡 模擬黃警 (320mm)</button>
+                            <button class="btn btn-outline btn-sim" id="btnSimRed">🔴 模擬紅警 (485mm)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COORDINATE POSITIONING CARD -->
+            <div class="card location-card full-width">
+                <div class="card-header">
+                    <div class="title-with-icon">
+                        <svg class="card-icon text-cyan" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                        <h2>座標定位與圖資分析</h2>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- 地址定位輸入框 -->
+                    <div class="address-input-group" style="margin-bottom: 0.75rem;">
+                        <label style="display:block; font-size:0.75rem; color:var(--color-text-muted); margin-bottom:0.25rem;">輸入地址定位 Address Geocoding</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="locAddress" class="custom-input" placeholder="例如：台東縣達仁鄉南興村..." style="flex-grow:1; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px; font-size:0.85rem;">
+                            <button class="btn btn-outline" id="btnGeocode" style="flex-shrink:0; padding:0 0.75rem; font-size:0.8rem; border-color:var(--color-cyan); color:var(--color-cyan); background: transparent;">搜尋地址</button>
+                        </div>
+                    </div>
+                    
+                    <div class="coordinate-inputs" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <div class="input-item">
+                            <label style="display:block; font-size:0.75rem; color:var(--color-text-muted); margin-bottom:0.25rem;">緯度 Latitude (WGS84)</label>
+                            <input type="number" step="0.000001" id="locLat" class="custom-input" value="22.385800" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px; font-family:monospace;">
+                        </div>
+                        <div class="input-item">
+                            <label style="display:block; font-size:0.75rem; color:var(--color-text-muted); margin-bottom:0.25rem;">經度 Longitude (WGS84)</label>
+                            <input type="number" step="0.000001" id="locLng" class="custom-input" value="120.892700" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px; font-family:monospace;">
+                        </div>
+                    </div>
+                    <button class="btn btn-accent btn-full" id="btnLocate" style="margin-bottom: 0.75rem;">🗺️ 立即定位位置</button>
+                    
+                    <div class="map-container" style="height: 480px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; background: #040508; position: relative;">
+                        <!-- Google Maps Iframe -->
+                        <iframe id="mapIframe" src="https://maps.google.com/maps?q=22.385800,120.892700&hl=zh-TW&z=16&output=embed" style="width: 100%; height: 100%; border: none;"></iframe>
+                        
+                        <!-- Offline Map Fallback -->
+                        <div id="mapOfflineFallback" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: radial-gradient(circle at center, #0c121e 0%, #05080f 100%); flex-direction:column; align-items:center; justify-content:center; padding:1.5rem; text-align:center; z-index:5;">
+                            <div class="fallback-radar-grid" style="position:relative; width:100px; height:100px; border:1px solid rgba(6,182,212,0.2); border-radius:50%; margin-bottom:1rem; background:repeating-radial-gradient(circle, transparent, transparent 10px, rgba(6,182,212,0.05) 10px, rgba(6,182,212,0.05) 11px);">
+                                <div style="position:absolute; top:50%; left:10%; right:10%; height:1px; background:rgba(6,182,212,0.2);"></div>
+                                <div style="position:absolute; left:50%; top:10%; bottom:10%; width:1px; background:rgba(6,182,212,0.2);"></div>
+                                <div style="position:absolute; top:50%; left:50%; width:8px; height:8px; background:#e63946; border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 8px #e63946;"></div>
+                            </div>
+                            <span style="font-size:0.8rem; color:var(--color-cyan); font-weight:600;" id="offlineMapCoords">📡 聯外網路斷線，已啟用本機微波定位對照座標：22.385800, 120.892700</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- TYPHOON DATA MODAL -->
+    <div class="modal" id="typhoonModal">
+        <div class="modal-content glass-bg-modal" style="max-width: 1250px; width: 95vw;">
+            <div class="modal-header">
+                <h2>🌀 颱風與警戒測站即時資訊</h2>
+                <button class="close-btn" id="btnCloseModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <!-- 測站選擇器 -->
+                <div class="station-selectors" style="margin-bottom: 1.25rem; background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;">
+                    <div class="setting-item" style="margin-bottom: 0;">
+                        <label for="typhoonRainStationSelect" style="display:block; font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.25rem;">🌧️ 雨量觀測站選擇：</label>
+                        <select id="typhoonRainStationSelect" class="custom-input" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px;">
+                            <option value="C0AC40|山豬窟">山豬窟 (C0AC40)</option>
+                            <option value="46762|大武">大武 (46762)</option>
+                            <option value="C0S730|達仁">達仁 (C0S730)</option>
+                            <option value="C0S810|安朔">安朔 (C0S810)</option>
+                            <option value="C0S830|森永">森永 (C0S830)</option>
+                            <option value="custom">-- 自訂觀測站 --</option>
+                        </select>
+                        <input type="text" id="customTyphoonRainStation" class="custom-input hidden" placeholder="格式: ID|名稱 (如 C0AC40|山豬窟)" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px; margin-top:0.4rem; font-size:0.8rem;">
+                    </div>
+                    <div class="setting-item" style="margin-bottom: 0;">
+                        <label for="typhoonWindStationSelect" style="display:block; font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.25rem;">💨 風速觀測站選擇：</label>
+                        <select id="typhoonWindStationSelect" class="custom-input" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px;">
+                            <option value="C0V250|南田">南田 (C0V250)</option>
+                            <option value="46762|大武">大武 (46762)</option>
+                            <option value="C0S830|森永">森永 (C0S830)</option>
+                            <option value="46757|蘭嶼">蘭嶼 (46757)</option>
+                            <option value="custom">-- 自訂觀測站 --</option>
+                        </select>
+                        <input type="text" id="customTyphoonWindStation" class="custom-input hidden" placeholder="格式: ID|名稱 (如 C0V250|南田)" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px; margin-top:0.4rem; font-size:0.8rem;">
+                    </div>
+                </div>
+
+                <div class="modal-loading" id="modalLoading">
+                    <div class="spinner"></div>
+                    <p id="loadingText">正在向中央氣象署要求即時數據...</p>
+                </div>
+                <div class="modal-results hidden" id="modalResults">
+                    <div class="typhoon-modal-grid">
+                        <!-- LEFT SIDE: WEATHER STATS & WARNING -->
+                        <div class="typhoon-modal-left">
+                            <div class="data-block-grid">
+                                <div class="data-block card-mini text-center">
+                                    <h3 id="typhoonRainTitle">🌧️ 山豬窟 24H 累積降雨</h3>
+                                    <div class="data-value text-accent" id="rainVal">-- <span class="unit">mm</span></div>
+                                    <p class="data-status" id="rainStatus">取得中...</p>
+                                </div>
+                                <div class="data-block card-mini text-center">
+                                    <h3 id="typhoonWindTitle">💨 南田村 最大陣風資料</h3>
+                                    <div class="data-value text-warning" id="windVal">-- <span class="unit">級</span></div>
+                                    <p class="data-status" id="windStatus">取得中...</p>
+                                </div>
+                            </div>
+                            <div class="typhoon-news-block card-mini" style="margin-bottom: 0;">
+                                <h3>ℹ️ 最新颱風動態消息 (CWA Warning)</h3>
+                                <div class="news-content" id="typhoonNews" style="max-height: 180px;">--</div>
+                            </div>
+                        </div>
+                        
+                        <!-- RIGHT SIDE: LINE REPORT TEXTAREA -->
+                        <div class="typhoon-modal-right">
+                            <div class="line-summary-block card-mini" style="height: 100%; display: flex; flex-direction: column; margin-bottom: 0;">
+                                <h3>📋 LINE 群組轉傳格式文本 (AI 彙整)</h3>
+                                <textarea id="lineSummaryText" class="custom-textarea" readonly placeholder="取得數據後，AI 會自動彙整成適合 LINE 轉傳的警報文本..." style="flex-grow: 1; min-height: 250px; font-size: 0.9rem; line-height: 1.5; color: #34d399;"></textarea>
+                                <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem; flex-shrink: 0;">
+                                    <button class="btn btn-outline" id="btnCopyLineText" style="width: 100%; padding: 0.65rem 0.5rem; font-size: 0.85rem;">
+                                        📋 複製通報文本
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CCTV MONITOR MODAL -->
+    <div class="modal" id="cctvModal">
+        <div class="modal-content glass-bg-modal" style="max-width: 1250px; width: 95vw;">
+            <div class="modal-header">
+                <h2>🎥 部落聯外道路與河川 CCTV 即時監控牆</h2>
+                <button class="close-btn" id="btnCloseCctvModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1rem;">
+                <!-- CCTV URL 自訂設定區 -->
+                <div class="cctv-settings-bar" style="background: rgba(255,255,255,0.03); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 1rem; flex-shrink: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--color-cyan);">⚙️ 自訂監視器 CCTV 影像來源網址</span>
+                        <button class="btn btn-outline" id="btnToggleCctvSettings" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: transparent; border-color: rgba(255,255,255,0.2); color: #ffffff;">展開自訂設定</button>
+                    </div>
+                    <div id="cctvSettingsInputs" class="hidden" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.75rem;">
+                        <div class="setting-item" style="margin-bottom:0;">
+                            <label style="font-size:0.75rem; color:var(--color-text-muted);">🎥 影格 1 網址 / 名稱 (選填)：</label>
+                            <input type="text" id="cctvUrl_0" class="custom-input" placeholder="影像網址..." style="width:100%; font-size:0.8rem; padding:0.4rem; margin-bottom:0.25rem;">
+                            <input type="text" id="cctvLabel_0" class="custom-input" placeholder="自訂標籤 (如: 安朔路段)..." style="width:100%; font-size:0.75rem; padding:0.35rem;">
+                        </div>
+                        <div class="setting-item" style="margin-bottom:0;">
+                            <label style="font-size:0.75rem; color:var(--color-text-muted);">🎥 影格 2 網址 / 名稱 (選填)：</label>
+                            <input type="text" id="cctvUrl_1" class="custom-input" placeholder="影像網址..." style="width:100%; font-size:0.8rem; padding:0.4rem; margin-bottom:0.25rem;">
+                            <input type="text" id="cctvLabel_1" class="custom-input" placeholder="自訂標籤..." style="width:100%; font-size:0.75rem; padding:0.35rem;">
+                        </div>
+                        <div class="setting-item" style="margin-bottom:0;">
+                            <label style="font-size:0.75rem; color:var(--color-text-muted);">🎥 影格 3 網址 / 名稱 (選填)：</label>
+                            <input type="text" id="cctvUrl_2" class="custom-input" placeholder="影像網址..." style="width:100%; font-size:0.8rem; padding:0.4rem; margin-bottom:0.25rem;">
+                            <input type="text" id="cctvLabel_2" class="custom-input" placeholder="自訂標籤..." style="width:100%; font-size:0.75rem; padding:0.35rem;">
+                        </div>
+                        <div class="setting-item" style="margin-bottom:0;">
+                            <label style="font-size:0.75rem; color:var(--color-text-muted);">🎥 影格 4 網址 / 名稱 (選填)：</label>
+                            <input type="text" id="cctvUrl_3" class="custom-input" placeholder="影像網址..." style="width:100%; font-size:0.8rem; padding:0.4rem; margin-bottom:0.25rem;">
+                            <input type="text" id="cctvLabel_3" class="custom-input" placeholder="自訂標籤..." style="width:100%; font-size:0.75rem; padding:0.35rem;">
+                        </div>
+                        <div style="grid-column: span 2; text-align: right; margin-top: 0.5rem;">
+                            <button class="btn btn-accent" id="btnSaveCctvUrls" style="padding: 0.4rem 1rem; font-size: 0.8rem;">💾 儲存並重新載入</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="cctv-grid" id="cctvGrid">
+                    <!-- Iframes dynamically injected to optimize loading and bandwidth -->
+                </div>
+                <div class="text-center" style="margin-top: 1rem; color: var(--color-text-muted); font-size: 0.75rem; letter-spacing: 0.5px;">
+                    🎥 本影像為即時影像，支援使用者自訂網址
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- RESIDENTS DATABASE MODAL -->
+    <div class="modal" id="residentsModal">
+        <div class="modal-content glass-bg-modal" style="max-width: 1250px; width: 95vw;">
+            <div class="modal-header">
+                <h2>👥 保全戶資料庫管理</h2>
+                <button class="close-btn" id="btnCloseResidentsModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem;">
+                <div class="residents-layout-full">
+                    <!-- Residents List -->
+                    <div class="panel-card" style="display: flex; flex-direction: column; padding: 1rem; width: 100%;">
+                        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <h3>📋 保全戶名冊</h3>
+                                <button class="btn btn-accent btn-sm" id="btnOpenAddResidentModal" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; height: 32px; display: inline-flex; align-items: center;">➕ 新增保全戶</button>
+                            </div>
+                            <input type="text" id="residentsSearch" class="custom-input" placeholder="🔍 搜尋姓名或地址..." style="width: 200px; padding: 0.35rem 0.75rem; font-size: 0.8rem; margin: 0;">
+                        </div>
+                        <div class="table-scroll-wrapper">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>姓名</th>
+                                        <th>性別</th>
+                                        <th>年齡</th>
+                                        <th>電話</th>
+                                        <th>地址</th>
+                                        <th>家戶關係</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="residentsTableBody">
+                                    <tr>
+                                        <td colspan="7" class="text-center" style="padding: 2rem; color: var(--color-text-muted);">載入保全戶資料中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bottom Stats -->
+                <div class="modal-stats-summary">
+                    <div class="stat-item">🏠 目前保全戶總戶數：<span id="residentsTotalHouseholds">0</span> 戶</div>
+                    <div class="stat-item">👥 目前保全戶總人數：<span id="residentsTotalPeople">0</span> 人</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESIDENTS FORM MODAL (彈跳式新增/修改視窗) -->
+    <div class="modal" id="residentFormModal">
+        <div class="modal-content glass-bg-modal" style="max-width: 550px; width: 90vw;">
+            <div class="modal-header">
+                <h2 id="residentsFormTitle">➕ 新增保全戶</h2>
+                <button class="close-btn" id="btnCloseResidentFormModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem;">
+                <input type="hidden" id="residentId">
+                <div class="setting-item" style="margin-bottom: 0.75rem;">
+                    <label for="residentName">姓名 (Name)：</label>
+                    <input type="text" id="residentName" class="custom-input" placeholder="輸入真實姓名..." required>
+                </div>
+                <div class="setting-item" style="margin-bottom: 0.75rem;">
+                    <label for="residentGender">性別 (Gender)：</label>
+                    <select id="residentGender" class="custom-input">
+                        <option value="male">男 (Male)</option>
+                        <option value="female">女 (Female)</option>
+                        <option value="other">其他 (Other)</option>
+                    </select>
+                </div>
+                <div class="setting-item" style="margin-bottom: 0.75rem;">
+                    <label for="residentBirthday">出生年月日 (Birthday)：</label>
+                    <input type="date" id="residentBirthday" class="custom-input" required>
+                </div>
+                <div class="setting-item" style="margin-bottom: 0.75rem;">
+                    <label>年齡 (Age)：</label>
+                    <input type="text" id="residentAge" class="custom-input" placeholder="輸入生日後自動計算..." readonly style="background: rgba(255, 255, 255, 0.05); color: var(--color-text-muted);">
+                </div>
+                <div class="setting-item" style="margin-bottom: 0.75rem;">
+                    <label for="residentPhone">行動電話 (Phone)：</label>
+                    <input type="text" id="residentPhone" class="custom-input" placeholder="例如：0912345678...">
+                </div>
+                <div class="setting-item" style="margin-bottom: 0.75rem;">
+                    <label for="residentAddress">居住地址 (Address)：</label>
+                    <input type="text" id="residentAddress" class="custom-input" placeholder="輸入詳細住址..." required>
+                </div>
+                
+                <div class="relation-picker-group" style="margin-bottom: 1rem;">
+                    <span style="display: block; font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 0.5rem; font-weight: 600;">家戶關係指定 (Household Relation)</span>
+                    <div class="relation-radio-labels">
+                        <label><input type="radio" name="residentRelation" value="head" checked> 自立為戶長</label>
+                        <label><input type="radio" name="residentRelation" value="member"> 家人 (同一戶)</label>
+                    </div>
+                    <div id="familyHeadSelectContainer" class="hidden" style="margin-top: 0.5rem;">
+                        <label for="residentFamilyHeadSelect" style="font-size: 0.75rem; color: var(--color-text-muted); display: block; margin-bottom: 0.25rem;">選擇所屬戶長：</label>
+                        <select id="residentFamilyHeadSelect" class="custom-input" style="width: 100%;">
+                            <option value="">-- 請選擇家戶長 --</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-buttons-inline">
+                    <button class="btn btn-accent btn-full" id="btnSaveResident">💾 儲存保全戶</button>
+                    <button class="btn btn-outline" id="btnResetResident" style="flex-shrink: 0;">🔄 重設</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHELTERS MANAGEMENT & EVACUATION MODAL -->
+    <div class="modal" id="sheltersModal">
+        <div class="modal-content glass-bg-modal" style="max-width: 1250px; width: 95vw;">
+            <div class="modal-header">
+                <h2>⛺ 收容中心與避難撤離管理</h2>
+                <button class="close-btn" id="btnCloseSheltersModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem;">
+                <!-- Top Panel: Add Shelter -->
+                <div class="panel-card" style="margin-bottom: 1rem; padding: 1rem;">
+                    <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+                        <input type="hidden" id="editShelterId">
+                        <div class="setting-item" style="margin: 0; flex-grow: 1;">
+                            <label for="shelterNameInput" style="margin-bottom: 0.25rem; font-weight: 600;">⛺ 新增 / 修改收容中心名稱：</label>
+                            <input type="text" id="shelterNameInput" class="custom-input" placeholder="例如：南興社區活動中心, 體育館...">
+                        </div>
+                        <button class="btn btn-accent" id="btnSaveShelter" style="min-height: 44px; padding: 0 1.5rem;">💾 儲存收容中心</button>
+                        <button class="btn btn-outline hidden" id="btnCancelEditShelter" style="min-height: 44px;">取消</button>
+                    </div>
+                </div>
+                
+                <div class="shelters-modal-layout">
+                    <!-- Left: Shelters List -->
+                    <div class="modal-right-panel" style="flex-grow: 1;">
+                        <div class="panel-card" style="height: 100%; display: flex; flex-direction: column; padding: 1rem;">
+                            <div class="panel-header">
+                                <h3>⛺ 收容中心清單</h3>
+                            </div>
+                            <div class="table-scroll-wrapper" style="flex-grow: 1;">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>收容中心名稱</th>
+                                            <th>已收容統計</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sheltersTableBody">
+                                        <tr>
+                                            <td colspan="3" class="text-center" style="padding: 2rem; color: var(--color-text-muted);">載入收容中心中...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Evac名冊 & 批次變更 -->
+                    <div class="modal-left-panel" style="flex-grow: 1.2;">
+                        <div class="panel-card" style="display: flex; flex-direction: column; padding: 1rem;">
+                            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                                <h3>📋 避難撤離名冊設定</h3>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <select id="evacStatusFilter" style="width: auto !important; min-width: 145px !important; flex-shrink: 0; padding: 0 2rem 0 0.75rem; line-height: 32px; font-size: 0.8rem; margin: 0; height: 32px !important; min-height: 32px !important; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 6px; outline: none; cursor: pointer; -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 0.7rem top 50%; background-size: 0.65rem auto;">
+                                        <option value="all">所有狀態</option>
+                                        <option value="none">尚未撤離</option>
+                                        <option value="relatives">依親避難</option>
+                                        <option value="shelter">撤離收容</option>
+                                    </select>
+                                    <input type="text" id="sheltersSearch" class="custom-input" placeholder="🔍 搜尋姓名或地址..." style="width: 200px; padding: 0.35rem 0.75rem; font-size: 0.8rem; margin: 0; height: 32px;">
+                                </div>
+                            </div>
+                            
+                            <div class="table-scroll-wrapper" style="max-height: 320px;">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 40px;"><input type="checkbox" id="chkSelectAllEvac"></th>
+                                            <th>姓名</th>
+                                            <th>地址</th>
+                                            <th>家戶主</th>
+                                            <th>避難撤離狀態</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="evacTableBody">
+                                        <tr>
+                                            <td colspan="5" class="text-center" style="padding: 2rem; color: var(--color-text-muted);">載入名冊中...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Batch evac state modification -->
+                            <div class="batch-ops-bar">
+                                <span style="font-weight: 700; font-size: 0.85rem; color: var(--color-warning);">⚙️ 批次變更所選保全戶之避難狀態</span>
+                                <div class="batch-ops-options">
+                                    <label><input type="radio" name="batchEvacStatus" value="none" checked> 尚未撤離</label>
+                                    <label><input type="radio" name="batchEvacStatus" value="relatives"> 依親</label>
+                                    <label><input type="radio" name="batchEvacStatus" value="shelter"> 撤離收容</label>
+                                    <select id="batchShelterSelect" class="custom-input" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; min-width: 150px;" disabled>
+                                        <option value="">-- 選擇收容中心 --</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-accent btn-full" id="btnSubmitBatchEvac">💾 儲存避難設定</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bottom Stats -->
+                <div class="modal-stats-summary" style="background: rgba(255, 183, 3, 0.08); border-color: rgba(255, 183, 3, 0.15); display: flex; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div class="stat-item" style="color: var(--color-warning);">🏡 依親撤離統計：<span id="evacRelativesCount">0</span> 人</div>
+                    <div class="stat-item" style="color: var(--color-success);">⛺ 收容撤離統計：<span id="evacShelterCount">0</span> 人 (共計 <span id="evacShelterHouseholds">0</span> 戶)</div>
+                    <div class="stat-item" style="color: var(--color-danger);">🚨 尚未撤離統計：<span id="evacNoneCount">0</span> 人</div>
+                    <button class="btn btn-outline" id="btnResetAllEvac" style="border-color: var(--color-danger); color: var(--color-danger); margin-left: auto; font-size: 0.8rem; padding: 0.35rem 0.75rem; min-height: auto;">
+                        🔄 重置全體避難狀態
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RAINFALL GAUGE MODAL -->
+    <div class="modal" id="rainfallGaugeModal">
+        <div class="modal-content glass-bg-modal" style="max-width: 900px; width: 95vw;">
+            <div class="modal-header">
+                <h2>📊 雨量筒手動偵測資料管理</h2>
+                <button class="close-btn" id="btnCloseRainfallGaugeModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; flex-wrap: wrap;">
+                    <!-- Left: Form for adding/editing record -->
+                    <div class="panel-card" style="padding: 1.25rem;">
+                        <h3 id="gaugeFormTitle" style="margin-bottom: 1rem; color: var(--color-cyan);">📝 登錄雨量資料</h3>
+                        <input type="hidden" id="gaugeRecordId">
+                        
+                        <div class="setting-item">
+                            <label for="gaugeLocation">測量地點：</label>
+                            <input type="text" id="gaugeLocation" class="custom-input" placeholder="例如：山豬窟、南興一號橋、避難所後山..." style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                        </div>
+                        
+                        <div class="setting-item" style="margin-top: 1rem;">
+                            <label for="gaugeValue">雨量筒數據 (mm)：</label>
+                            <input type="number" step="0.1" id="gaugeValue" class="custom-input" placeholder="請輸入測量降雨量（毫米）..." style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                        </div>
+                        
+                        <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem;">
+                            <button class="btn btn-accent btn-full" id="btnSubmitGaugeRecord">💾 儲存資料</button>
+                            <button class="btn btn-outline" id="btnCancelGaugeEdit" style="display: none; border-color: rgba(255,255,255,0.3); color: #ffffff; min-height: auto;">取消修改</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Dynamic Chart -->
+                    <div class="panel-card" style="padding: 1.25rem; display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="color: var(--color-warning);">📈 各地點累積雨量統計圖</h3>
+                            <button class="btn btn-outline btn-sim" id="btnExportGaugeChart" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; min-height: auto;">🖼️ 匯出圖表圖片</button>
+                        </div>
+                        <div style="flex-grow: 1; min-height: 200px; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); padding: 0.5rem;">
+                            <canvas id="gaugeChartCanvas" style="width: 100%; height: 100%; max-height: 220px;"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Middle: Accumulation Summary Panels -->
+                <div class="panel-card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <h3 style="color: var(--color-success); margin: 0; font-size: 1rem; font-weight: 600;">📊 各測量地點累積統計雨量</h3>
+                    <div id="gaugeAccumulationSummary" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 0.85rem; color: var(--color-text-muted);">尚無累積雨量統計。</span>
+                    </div>
+                </div>
+
+                <!-- Bottom: Records Table & Global Actions -->
+                <div class="panel-card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                            <h3 style="color: #ffffff; margin: 0;">📋 歷史偵測紀錄列表</h3>
+                            <select id="gaugeLocationFilter" style="background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.8rem; min-height: auto; outline: none; cursor: pointer;">
+                                <option value="">🔍 所有量測地點</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-accent" id="btnExportGaugeCsv" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; min-height: auto; background: var(--color-success); border-color: var(--color-success);">📥 匯出 CSV 數據</button>
+                            <button class="btn btn-outline" id="btnResetGaugeData" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; min-height: auto; border-color: var(--color-danger); color: var(--color-danger);">🔄 任務結束一鍵重製</button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-scroll-wrapper" style="max-height: 250px;">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>測量地點</th>
+                                    <th>單次雨量 (mm)</th>
+                                    <th>輸入時間</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gaugeTableBody">
+                                <tr>
+                                    <td colspan="4" class="text-center" style="padding: 2rem; color: var(--color-text-muted);">無歷史登錄資料。</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT USER MODAL -->
+    <div class="modal" id="editUserModal">
+        <div class="modal-content glass-bg-modal" style="max-width: 500px; width: 90vw;">
+            <div class="modal-header">
+                <h2>✏️ 修改用戶資料</h2>
+                <button class="close-btn" id="btnCloseEditUserModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <input type="hidden" id="editUserUid">
+                <div class="setting-item">
+                    <label for="editUserName">姓名 (Name)：</label>
+                    <input type="text" id="editUserName" class="custom-input" style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                </div>
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="editUserPhone">連絡電話 (Phone)：</label>
+                    <input type="text" id="editUserPhone" class="custom-input" style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                </div>
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="editUserJob">工作職稱 (Job)：</label>
+                    <input type="text" id="editUserJob" class="custom-input" style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                </div>
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="editUserCounty">所屬縣市：</label>
+                    <input type="text" id="editUserCounty" class="custom-input" style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                </div>
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="editUserTown">所屬鄉鎮：</label>
+                    <input type="text" id="editUserTown" class="custom-input" style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                </div>
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="editUserVillage">村落名稱：</label>
+                    <input type="text" id="editUserVillage" class="custom-input" style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                </div>
+                <button class="btn btn-accent btn-full" id="btnSaveEditUser" style="margin-top: 1.5rem;">💾 儲存修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OFFLINE TEMPLATE MODAL -->
+    <div class="modal" id="offlineTemplateModal">
+        <div class="modal-content glass-bg-modal" style="max-width: 700px; width: 90vw;">
+            <div class="modal-header">
+                <h2>✨ 自訂離線防災 AI 模板 (由 AI 協助建立)</h2>
+                <button class="close-btn" id="btnCloseTemplateModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <p style="font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 1rem; line-height: 1.4;">
+                    您可以在此透過 AI 助理生成自訂的防災模板與知識條目。生成並儲存後，即使在外部網路完全斷線的離線狀態下，AI 減災助理也能檢索並回答這些內容。
+                </p>
+                
+                <div class="setting-item">
+                    <label for="templateKeyword">🔑 觸發關鍵字 (例如: 沙包, 避難所)：</label>
+                    <input type="text" id="templateKeyword" class="custom-input" placeholder="當問題中包含此字眼時將觸發回答..." style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                </div>
+                
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="templatePrompt">💡 AI 生成指令 (例如: 生成沙包正確堆疊法)：</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="templatePrompt" class="custom-input" placeholder="描述您希望 AI 產生的防災知識內容..." style="flex-grow: 1; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                        <button class="btn btn-accent" id="btnGenerateTemplate" style="flex-shrink: 0; padding: 0 1rem; font-size: 0.85rem;">✨ AI 生成</button>
+                    </div>
+                </div>
+                
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="templateContent">📝 知識庫內容 (Markdown 格式，可自由編輯)：</label>
+                    <textarea id="templateContent" class="custom-textarea" placeholder="AI 生成的內容會顯示在此處，您也可以手動修改..." style="width: 100%; min-height: 200px; font-size: 0.85rem; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;"></textarea>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
+                    <button class="btn btn-outline" id="btnSaveTemplate" style="border-color: var(--color-success); color: var(--color-success); background: transparent;">💾 儲存至離線知識庫</button>
+                    <span id="templateStatus" style="font-size: 0.8rem; color: var(--color-cyan);"></span>
+                </div>
+                
+                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem 0;">
+                
+                <h3 style="font-size: 1rem; font-weight: 600;">📋 已建立的自訂離線模板</h3>
+                <div id="customTemplateList" style="max-height: 150px; overflow-y: auto; margin-top: 0.5rem; background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                    <!-- 列表動態渲染 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=2.4.4"></script>
+</body>
+</html>

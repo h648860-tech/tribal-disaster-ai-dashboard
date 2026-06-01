@@ -1,0 +1,14 @@
+{
+  "name": "functions",
+  "description": "Firebase Cloud Functions for Tribal Disaster Dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "firebase-admin": "^11.8.0",
+    "firebase-functions": "^4.3.1",
+    "node-fetch": "^2.6.9"
+  },
+  "engines": {
+    "node": "20"
+  }
+}

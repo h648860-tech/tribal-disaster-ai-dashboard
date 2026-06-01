@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 雨量筒資料隔離規則：僅限所有人讀寫自己創建的數據
+    match /rainfall_gauges/{docId} {
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // 其他常規模組規則
+    match /residents/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /shelters/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /settings/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /users/{docId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

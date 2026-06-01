@@ -1,0 +1,23 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+web_modules/
+
+# Firebase Cache & Logs
+.firebase/
+firebase-debug.log
+ui-debug.log
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

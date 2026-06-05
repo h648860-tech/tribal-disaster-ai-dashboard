@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.0";
+const CURRENT_VERSION = "2.5.1";
 
 async function checkSystemVersion() {
     try {
@@ -928,6 +928,29 @@ function initCctvMonitor() {
     const cctvSettingsInputs = document.getElementById('cctvSettingsInputs');
     const btnSaveCctvUrls = document.getElementById('btnSaveCctvUrls');
     
+    // 公路局 CCTV 伺服器列表，用於自動修復輪詢
+    const cctvServers = ["cctv-ss05", "cctv-ss07", "cctv-ss01", "cctv-ss02", "cctv-ss03", "cctv-ss04", "cctv-ss06"];
+    window.handleCctvError = function(img) {
+        const currentUrl = img.src;
+        let currentIdx = cctvServers.findIndex(srv => currentUrl.includes(srv));
+        const nextIdx = currentIdx + 1;
+        
+        if (nextIdx < cctvServers.length) {
+            const nextServer = cctvServers[nextIdx];
+            const cameraId = img.getAttribute('data-id');
+            if (cameraId) {
+                const newUrl = `https://${nextServer}.thb.gov.tw:443/${cameraId}`;
+                console.log(`CCTV ${cameraId} 載入失敗，嘗試自動切換至伺服器: ${nextServer}`);
+                img.src = `${newUrl}?t=${Math.random()}`;
+                img.setAttribute('data-src', newUrl);
+            }
+        } else {
+            console.warn("所有公路局 CCTV 伺服器皆無法載入此 ID:", img.getAttribute('data-id'));
+            img.src = "logo.png"; // 顯示凱芳預設 Logo
+            img.removeAttribute('onerror'); // 避免無限循環
+        }
+    };
+    
     if (!btnOpenCctv || !cctvModal || !cctvGrid) return;
     
     const defaultCctvUrls = [
@@ -1027,34 +1050,23 @@ function initCctvMonitor() {
         if (!url) return url;
         const trimmed = url.trim();
         
-        // 如果是 tw.live 的網址，試圖解析並轉換成直連網址
-        if (trimmed.includes("tw.live")) {
-            try {
-                const urlObj = new URL(trimmed);
-                let id = urlObj.searchParams.get("id");
-                if (!id) {
-                    const paths = urlObj.pathname.split('/');
-                    id = paths[paths.length - 1] || paths[paths.length - 2];
-                }
-                if (id) {
-                    id = decodeURIComponent(id);
-                    const lowerId = id.toLowerCase();
-                    if (lowerId === "t9-422k+650") return "https://cctv-ss05.thb.gov.tw:443/T9-422K+650";
-                    if (lowerId === "t9-425k+200") return "https://cctv-ss05.thb.gov.tw:443/T9-425K+200";
-                    if (lowerId === "t9-423k+000") return "https://cctv-ss05.thb.gov.tw:443/T9-423K+000";
-                    if (lowerId === "t9-421k+500-1" || lowerId === "t9-421k+500") return "https://cctv-ss07.thb.gov.tw:443/T9-421k+500-1";
-                    
-                    // 針對公路局所有省道 CCTV (例如 T9-, T26-, T11- 等) 進行自動匹配
-                    if (/^t\d+-/.test(lowerId)) {
-                        if (lowerId.startsWith("t9-421k")) {
-                            return `https://cctv-ss07.thb.gov.tw:443/${id}`;
-                        }
-                        return `https://cctv-ss05.thb.gov.tw:443/${id}`;
-                    }
-                }
-            } catch (e) {
-                console.warn("解析 tw.live 網址失敗:", e);
+        // 使用正則匹配任何含有公路局測站 ID 的字串 (如 T9-422K+650)
+        const match = trimmed.match(/(T\d+-\d+[kK]\+\d+(?:-[a-zA-Z0-9]+)?)/i);
+        if (match) {
+            const cameraId = match[1];
+            const lowerId = cameraId.toLowerCase();
+            
+            // 比對已知確切伺服器以加速首次載入
+            if (lowerId === "t9-422k+650") return "https://cctv-ss05.thb.gov.tw:443/T9-422K+650";
+            if (lowerId === "t9-425k+200") return "https://cctv-ss05.thb.gov.tw:443/T9-425K+200";
+            if (lowerId === "t9-423k+000") return "https://cctv-ss05.thb.gov.tw:443/T9-423K+000";
+            if (lowerId === "t9-421k+500-1" || lowerId === "t9-421k+500") return "https://cctv-ss07.thb.gov.tw:443/T9-421k+500-1";
+            
+            // 針對公路局所有省道 CCTV (例如 T9-, T26-, T11- 等) 預設為 ss05 (載入失敗會由 handleCctvError 自動輪詢其他伺服器)
+            if (lowerId.startsWith("t9-421k")) {
+                return `https://cctv-ss07.thb.gov.tw:443/${cameraId}`;
             }
+            return `https://cctv-ss05.thb.gov.tw:443/${cameraId}`;
         }
         return trimmed;
     }
@@ -1076,7 +1088,11 @@ function initCctvMonitor() {
             }
             
             if (isImg) {
-                mediaHtml = `<img src="${getRefreshedUrl(convertedUrl)}" data-src="${convertedUrl}" alt="${cfg.label}" referrerpolicy="no-referrer" class="cctv-image">`;
+                // 擷取 ID 用於 onerror 時更換伺服器輪詢
+                const matchId = convertedUrl.match(/(T\d+-\d+[kK]\+\d+(?:-[a-zA-Z0-9]+)?)/i);
+                const dataIdAttr = matchId ? `data-id="${matchId[1]}"` : "";
+                
+                mediaHtml = `<img src="${getRefreshedUrl(convertedUrl)}" data-src="${convertedUrl}" ${dataIdAttr} onerror="window.handleCctvError && window.handleCctvError(this)" alt="${cfg.label}" referrerpolicy="no-referrer" class="cctv-image">`;
             } else {
                 mediaHtml = `<iframe src="${convertedUrl}" class="cctv-image" style="border: none; width: 100%; height: 100%;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
             }

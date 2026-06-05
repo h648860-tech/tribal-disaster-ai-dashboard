@@ -1121,7 +1121,24 @@ function initCctvMonitor() {
             `;
         }).join('');
         
-        // 全螢幕按鈕事件綁定 (加入 iOS 虛擬全螢幕相容性機制)
+        // 輔助函式：動態更新全螢幕按鈕狀態與圖示
+        function updateFSButtonState(wrapper, isFS) {
+            const btn = wrapper.querySelector('.cctv-fs-btn');
+            if (!btn) return;
+            if (isFS) {
+                btn.innerHTML = `
+                    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    關閉全螢幕
+                `;
+            } else {
+                btn.innerHTML = `
+                    <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                    全螢幕
+                `;
+            }
+        }
+
+        // 全螢幕按鈕事件綁定 (加入 iOS 虛擬全螢幕與原生全螢幕雙向切換機制)
         const fsButtons = cctvGrid.querySelectorAll('.cctv-fs-btn');
         fsButtons.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1129,17 +1146,30 @@ function initCctvMonitor() {
                 const wrapper = document.getElementById(targetId);
                 if (!wrapper) return;
                 
-                // 檢查是否已處於虛擬全螢幕
+                // 1. 檢查是否已處於虛擬全螢幕
                 if (wrapper.classList.contains('pseudo-fullscreen')) {
                     wrapper.classList.remove('pseudo-fullscreen');
-                    btn.innerHTML = `
-                        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-                        全螢幕
-                    `;
+                    updateFSButtonState(wrapper, false);
+                    return;
+                }
+                
+                // 2. 檢查是否已處於原生全螢幕
+                const isCurrentlyFS = document.fullscreenElement === wrapper ||
+                                      document.webkitFullscreenElement === wrapper ||
+                                      document.mozFullScreenElement === wrapper ||
+                                      document.msFullscreenElement === wrapper;
+                if (isCurrentlyFS) {
+                    const exitFS = document.exitFullscreen || 
+                                   document.webkitExitFullscreen || 
+                                   document.mozCancelFullScreen || 
+                                   document.msExitFullscreen;
+                    if (exitFS) {
+                        exitFS.call(document);
+                    }
                     return;
                 }
 
-                // 偵測 Native Fullscreen APIs
+                // 3. 偵測 Native Fullscreen APIs
                 const requestFS = wrapper.requestFullscreen || 
                                   wrapper.mozRequestFullScreen || 
                                   wrapper.webkitRequestFullscreen || 
@@ -1151,37 +1181,43 @@ function initCctvMonitor() {
                 if (requestFS && !isIOS) {
                     requestFS.call(wrapper).catch(err => {
                         console.warn("原生全螢幕呼叫失敗，切換為虛擬全螢幕:", err);
-                        enablePseudoFS(wrapper, btn);
+                        enablePseudoFS(wrapper);
                     });
                 } else {
                     // 不支援或 iOS 裝置，直接切換為虛擬全螢幕
-                    enablePseudoFS(wrapper, btn);
+                    enablePseudoFS(wrapper);
                 }
             });
         });
 
         // 輔助函式：啟用虛擬全螢幕
-        function enablePseudoFS(wrapper, btn) {
+        function enablePseudoFS(wrapper) {
             wrapper.classList.add('pseudo-fullscreen');
-            btn.innerHTML = `
-                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                關閉全螢幕
-            `;
+            updateFSButtonState(wrapper, true);
         }
 
-        // 額外綁定：當使用者從原生全螢幕退出時，雙重保險確認無 pseudo-fullscreen 殘留
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                const wrappers = cctvGrid.querySelectorAll('.cctv-card-wrapper');
-                wrappers.forEach(w => w.classList.remove('pseudo-fullscreen'));
-            }
-        });
-        document.addEventListener('webkitfullscreenchange', () => {
-            if (!document.webkitFullscreenElement) {
-                const wrappers = cctvGrid.querySelectorAll('.cctv-card-wrapper');
-                wrappers.forEach(w => w.classList.remove('pseudo-fullscreen'));
-            }
-        });
+        // 監聽原生全螢幕變更事件，動態更新按鈕與狀態
+        const handleFSChange = () => {
+            const wrappers = cctvGrid.querySelectorAll('.cctv-card-wrapper');
+            const fsElement = document.fullscreenElement || 
+                              document.webkitFullscreenElement || 
+                              document.mozFullScreenElement || 
+                              document.msFullscreenElement;
+            
+            wrappers.forEach(w => {
+                if (fsElement === w) {
+                    updateFSButtonState(w, true);
+                } else {
+                    w.classList.remove('pseudo-fullscreen');
+                    updateFSButtonState(w, false);
+                }
+            });
+        };
+
+        document.addEventListener('fullscreenchange', handleFSChange);
+        document.addEventListener('webkitfullscreenchange', handleFSChange);
+        document.addEventListener('mozfullscreenchange', handleFSChange);
+        document.addEventListener('MSFullscreenChange', handleFSChange);
 
         // 啟動圖片定時刷新（每 10 秒）
         refreshInterval = setInterval(() => {

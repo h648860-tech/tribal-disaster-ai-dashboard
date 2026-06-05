@@ -1744,36 +1744,32 @@ body {
 
 /* Fullscreen API states */
 .cctv-card-wrapper:-webkit-full-screen {
-    width: 100% !important;
-    height: 100% !important;
+    width: 100vw !important;
+    height: 100vh !important;
     border: none !important;
     border-radius: 0 !important;
+    background: #000000 !important;
 }
 .cctv-card-wrapper:-moz-full-screen {
-    width: 100% !important;
-    height: 100% !important;
+    width: 100vw !important;
+    height: 100vh !important;
     border: none !important;
     border-radius: 0 !important;
+    background: #000000 !important;
 }
 .cctv-card-wrapper:-ms-fullscreen {
-    width: 100% !important;
-    height: 100% !important;
+    width: 100vw !important;
+    height: 100vh !important;
     border: none !important;
     border-radius: 0 !important;
+    background: #000000 !important;
 }
 .cctv-card-wrapper:fullscreen {
-    width: 100% !important;
-    height: 100% !important;
+    width: 100vw !important;
+    height: 100vh !important;
     border: none !important;
     border-radius: 0 !important;
-}
-
-/* Hide the fullscreen button in fullscreen mode */
-.cctv-card-wrapper:fullscreen .cctv-fs-btn,
-.cctv-card-wrapper:-webkit-full-screen .cctv-fs-btn,
-.cctv-card-wrapper:-moz-full-screen .cctv-fs-btn,
-.cctv-card-wrapper:-ms-fullscreen .cctv-fs-btn {
-    display: none !important;
+    background: #000000 !important;
 }
 
 /* Pseudo Fullscreen for browsers without Fullscreen API support (like iOS iPhone) */
@@ -1791,9 +1787,51 @@ body {
     padding: 0 !important;
 }
 
+/* 全螢幕模式下的按鈕與標籤浮動樣式 (半透明黑底、白字、圓角毛玻璃) */
+.cctv-card-wrapper:fullscreen .cctv-label,
+.cctv-card-wrapper:-webkit-full-screen .cctv-label,
+.cctv-card-wrapper.pseudo-fullscreen .cctv-label {
+    position: absolute !important;
+    bottom: 20px !important;
+    left: 20px !important;
+    background: rgba(4, 5, 8, 0.6) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 8px !important;
+    font-size: 0.85rem !important;
+    z-index: 2147483647 !important;
+    pointer-events: none;
+    letter-spacing: 0.5px;
+}
+
+.cctv-card-wrapper:fullscreen .cctv-fs-btn,
+.cctv-card-wrapper:-webkit-full-screen .cctv-fs-btn,
 .cctv-card-wrapper.pseudo-fullscreen .cctv-fs-btn {
-    background: rgba(230, 57, 70, 0.85) !important;
-    border-color: rgba(230, 57, 70, 0.85) !important;
+    display: inline-flex !important;
+    position: absolute !important;
+    top: 20px !important;
+    right: 20px !important;
+    background: rgba(4, 5, 8, 0.6) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 8px !important;
+    font-size: 0.85rem !important;
+    z-index: 2147483647 !important;
+    cursor: pointer;
+}
+
+.cctv-card-wrapper:fullscreen .cctv-fs-btn:hover,
+.cctv-card-wrapper:-webkit-full-screen .cctv-fs-btn:hover,
+.cctv-card-wrapper.pseudo-fullscreen .cctv-fs-btn:hover {
+    background: var(--color-cyan) !important;
+    border-color: var(--color-cyan) !important;
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3) !important;
 }
 
 /* Special CSS cropping for tw.live camera pages in iframes to achieve app-like fullscreen video */

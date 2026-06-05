@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.4.8";
+const CURRENT_VERSION = "2.4.9";
 
 async function checkSystemVersion() {
     try {
@@ -1021,6 +1021,40 @@ function initCctvMonitor() {
                lower.includes('format=jpg') ||
                lower.includes('image');
     }
+
+    // 轉換為直連網址或已知 CCTV 格式
+    function convertCctvUrl(url) {
+        if (!url) return url;
+        const trimmed = url.trim();
+        
+        // 如果是 tw.live 的網址，試圖解析並轉換成直連網址
+        if (trimmed.includes("tw.live")) {
+            try {
+                const urlObj = new URL(trimmed);
+                let id = urlObj.searchParams.get("id");
+                if (!id) {
+                    const paths = urlObj.pathname.split('/');
+                    id = paths[paths.length - 1] || paths[paths.length - 2];
+                }
+                if (id) {
+                    id = decodeURIComponent(id);
+                    const lowerId = id.toLowerCase();
+                    if (lowerId === "t9-422k+650") return "https://cctv-ss05.thb.gov.tw:443/T9-422K+650";
+                    if (lowerId === "t9-425k+200") return "https://cctv-ss05.thb.gov.tw:443/T9-425K+200";
+                    if (lowerId === "t9-423k+000") return "https://cctv-ss05.thb.gov.tw:443/T9-423K+000";
+                    if (lowerId === "t9-421k+500-1" || lowerId === "t9-421k+500") return "https://cctv-ss07.thb.gov.tw:443/T9-421k+500-1";
+                    
+                    // 針對公路局台9線進行自動解析匹配 (預設 ss05)
+                    if (lowerId.startsWith("t9-")) {
+                        return `https://cctv-ss05.thb.gov.tw:443/${id}`;
+                    }
+                }
+            } catch (e) {
+                console.warn("解析 tw.live 網址失敗:", e);
+            }
+        }
+        return trimmed;
+    }
     
     function renderCctvGrid() {
         if (refreshInterval) {
@@ -1029,17 +1063,23 @@ function initCctvMonitor() {
         }
         
         cctvGrid.innerHTML = cctvConfigs.map((cfg, idx) => {
-            const isImg = isImageUrl(cfg.url);
+            const convertedUrl = convertCctvUrl(cfg.url);
+            const isImg = isImageUrl(convertedUrl);
             let mediaHtml = "";
+            let wrapperClass = "cctv-card-wrapper";
+            
+            if (convertedUrl.includes("tw.live")) {
+                wrapperClass += " cctv-wrapper-twlive";
+            }
             
             if (isImg) {
-                mediaHtml = `<img src="${getRefreshedUrl(cfg.url)}" data-src="${cfg.url}" alt="${cfg.label}" referrerpolicy="no-referrer" class="cctv-image">`;
+                mediaHtml = `<img src="${getRefreshedUrl(convertedUrl)}" data-src="${convertedUrl}" alt="${cfg.label}" referrerpolicy="no-referrer" class="cctv-image">`;
             } else {
-                mediaHtml = `<iframe src="${cfg.url}" class="cctv-image" style="border: none; width: 100%; height: 100%;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                mediaHtml = `<iframe src="${convertedUrl}" class="cctv-image" style="border: none; width: 100%; height: 100%;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
             }
             
             return `
-                <div class="cctv-card-wrapper" id="cctvWrapper_${idx}">
+                <div class="${wrapperClass}" id="cctvWrapper_${idx}">
                     ${mediaHtml}
                     <div class="cctv-label">${cfg.label}</div>
                     <button class="cctv-fs-btn" data-target="cctvWrapper_${idx}">

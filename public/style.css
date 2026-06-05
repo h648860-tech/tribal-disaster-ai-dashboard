@@ -1796,6 +1796,16 @@ body {
     border-color: rgba(230, 57, 70, 0.85) !important;
 }
 
+/* Special CSS cropping for tw.live camera pages in iframes to achieve app-like fullscreen video */
+.cctv-card-wrapper.cctv-wrapper-twlive iframe {
+    width: 100% !important;
+    height: calc(100% + 140px) !important;
+    margin-top: -85px !important;
+    transform: scale(1.08);
+    transform-origin: top center;
+    pointer-events: none; /* prevent link clicking inside the iframe */
+}
+
 /* Settings Gear button in header */
 .btn-gear {
     background: rgba(255, 255, 255, 0.05);

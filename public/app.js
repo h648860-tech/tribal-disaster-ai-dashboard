@@ -530,8 +530,12 @@ function initWarningSystem() {
     let timerId = null;
     let isSimulationMode = false;
 
-    // 載入 localStorage 警報測站，預設為 C0AC40|山豬窟
-    let savedAlertStation = localStorage.getItem('alertStation') || "C0AC40|山豬窟";
+    // 載入 localStorage 警報測站，預設為 C0S990|山豬窟
+    let savedAlertStation = localStorage.getItem('alertStation') || "C0S990|山豬窟";
+    if (savedAlertStation.startsWith("C0AC40")) {
+        savedAlertStation = "C0S990|山豬窟";
+        localStorage.setItem('alertStation', savedAlertStation);
+    }
     
     function syncAlertStationUI() {
         if (!alertStationSelect) return;
@@ -2001,7 +2005,11 @@ function initTyphoonData() {
     if (!btnTyphoonData || !typhoonModal) return;
 
     // 載入 localStorage 設定
-    let savedRainStation = localStorage.getItem('typhoonRainStation') || "C0AC40|山豬窟";
+    let savedRainStation = localStorage.getItem('typhoonRainStation') || "C0S990|山豬窟";
+    if (savedRainStation.startsWith("C0AC40")) {
+        savedRainStation = "C0S990|山豬窟";
+        localStorage.setItem('typhoonRainStation', savedRainStation);
+    }
     let savedWindStation = localStorage.getItem('typhoonWindStation') || "C0V250|南田";
     
     function initStationUI(selectEl, customInputEl, savedVal) {
@@ -2068,9 +2076,9 @@ function initTyphoonData() {
                 localStorage.setItem('typhoonRainStation', customVal);
             } else {
                 alert("自訂雨量測站格式不正確 (格式：代碼|名稱)，將使用預設山豬窟測站。");
-                rainSelect.value = "C0AC40|山豬窟";
+                rainSelect.value = "C0S990|山豬窟";
                 customRainInput.classList.add('hidden');
-                rainVal = "C0AC40|山豬窟";
+                rainVal = "C0S990|山豬窟";
                 localStorage.setItem('typhoonRainStation', rainVal);
             }
         }

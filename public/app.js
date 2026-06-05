@@ -653,7 +653,12 @@ function initWarningSystem() {
             if (data && data.records && data.records.Station) {
                 const s = data.records.Station.find(st => st.StationId === stationId || st.StationName === stationName);
                 if (s) {
-                    rain24h = findValByKey(s, "Precipitation") || findValByKey(s, "PrecipitationMax") || 0;
+                    if (s.RainfallElement && s.RainfallElement.Past24Hr && s.RainfallElement.Past24Hr.Precipitation !== undefined) {
+                        const val = s.RainfallElement.Past24Hr.Precipitation;
+                        rain24h = (typeof val === 'object' && val !== null && val.value !== undefined) ? parseFloat(val.value) : parseFloat(val);
+                    } else {
+                        rain24h = findValByKey(s, "Precipitation") || findValByKey(s, "PrecipitationMax") || 0;
+                    }
                 }
             }
             
@@ -2175,7 +2180,12 @@ function initTyphoonData() {
             if (rainRes && rainRes.records && rainRes.records.Station) {
                 const s = rainRes.records.Station.find(st => st.StationId === rainId || st.StationName === rainName);
                 if (s) {
-                    rain24h = findValByKey(s, "Precipitation") || findValByKey(s, "PrecipitationMax") || 0;
+                    if (s.RainfallElement && s.RainfallElement.Past24Hr && s.RainfallElement.Past24Hr.Precipitation !== undefined) {
+                        const val = s.RainfallElement.Past24Hr.Precipitation;
+                        rain24h = (typeof val === 'object' && val !== null && val.value !== undefined) ? parseFloat(val.value) : parseFloat(val);
+                    } else {
+                        rain24h = findValByKey(s, "Precipitation") || findValByKey(s, "PrecipitationMax") || 0;
+                    }
                 }
             }
 

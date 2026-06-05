@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.4";
+const CURRENT_VERSION = "2.5.5";
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -985,6 +985,25 @@ function initCctvMonitor() {
             }
         } else {
             console.warn("所有公路局 CCTV 伺服器皆無法載入此 ID:", img.getAttribute('data-id'));
+            
+            // 嘗試退回原始 iframe 載入（如果原本不是 thb 圖片直連）
+            const originalUrl = img.getAttribute('data-original-url');
+            if (originalUrl && !originalUrl.includes('thb.gov.tw')) {
+                const parent = img.parentElement;
+                if (parent) {
+                    console.log("圖片全部載入失敗，退回原始 iframe 載入:", originalUrl);
+                    parent.innerHTML = `
+                        <iframe src="${originalUrl}" class="cctv-image" style="border: none; width: 100%; height: 100%;" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                        <div class="cctv-label">${img.alt}</div>
+                        <button class="cctv-fs-btn" data-target="${parent.id}">
+                            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                            全螢幕
+                        </button>
+                    `;
+                    return;
+                }
+            }
+            
             img.src = "logo.png"; // 顯示凱芳預設 Logo
             img.removeAttribute('onerror'); // 避免無限循環
         }
@@ -1085,7 +1104,7 @@ function initCctvMonitor() {
     }
 
     // 轉換為直連網址或已知 CCTV 格式
-    function convertCctvUrl(url) {
+    function convertCctvUrl(url, label) {
         if (!url) return url;
         
         let decodedUrl = url.trim();
@@ -1103,8 +1122,23 @@ function initCctvMonitor() {
             limit--;
         }
         
-        // 使用正則匹配 any 含有公路局測站 ID 的字串 (如 T9-422K+650, T9-422K 650, T9-422K650 等)
-        const match = decodedUrl.match(/(T\d+-\d+[kK][\+\s]?\d+(?:-[a-zA-Z0-9]+)?)/i);
+        // 1. 優先從 URL 中尋找省道 ID
+        let match = decodedUrl.match(/(T\d+-\d+[kK][\+\s]?\d+(?:-[a-zA-Z0-9]+)?)/i);
+        
+        // 2. 如果 URL 中找不到，且有標籤，則嘗試從標籤中提取省道 ID
+        if (!match && label) {
+            const labelMatch = label.match(/(?:台|省道)\s*(\d+)\s*線\s*(\d+[kK][\+\s]?\d+)/i);
+            if (labelMatch) {
+                let routeNum = labelMatch[1];
+                let mileage = labelMatch[2];
+                if (!mileage.includes("+")) {
+                    mileage = mileage.replace(/([kK])\s*(\d+)/i, "$1+$2");
+                }
+                const cameraId = `T${routeNum}-${mileage}`;
+                return `https://cctv-ss05.thb.gov.tw:443/${cameraId}`;
+            }
+        }
+        
         if (match) {
             let cameraId = match[1];
             // 標準化：確保 K 之後有 + 連接符號
@@ -1136,12 +1170,12 @@ function initCctvMonitor() {
         }
         
         cctvGrid.innerHTML = cctvConfigs.map((cfg, idx) => {
-            const convertedUrl = convertCctvUrl(cfg.url);
+            const convertedUrl = convertCctvUrl(cfg.url, cfg.label);
             const isImg = isImageUrl(convertedUrl);
             let mediaHtml = "";
             let wrapperClass = "cctv-card-wrapper";
             
-            if (convertedUrl.includes("tw.live")) {
+            if (convertedUrl.includes("tw.live") || cfg.url.includes("tw.live")) {
                 wrapperClass += " cctv-wrapper-twlive";
             }
             
@@ -1150,7 +1184,7 @@ function initCctvMonitor() {
                 const matchId = convertedUrl.match(/(T\d+-\d+[kK]\+\d+(?:-[a-zA-Z0-9]+)?)/i);
                 const dataIdAttr = matchId ? `data-id="${matchId[1]}"` : "";
                 
-                mediaHtml = `<img src="${getRefreshedUrl(convertedUrl)}" data-src="${convertedUrl}" ${dataIdAttr} onerror="window.handleCctvError && window.handleCctvError(this)" alt="${cfg.label}" referrerpolicy="no-referrer" class="cctv-image">`;
+                mediaHtml = `<img src="${getRefreshedUrl(convertedUrl)}" data-src="${convertedUrl}" data-original-url="${cfg.url}" ${dataIdAttr} onerror="window.handleCctvError && window.handleCctvError(this)" alt="${cfg.label}" referrerpolicy="no-referrer" class="cctv-image">`;
             } else {
                 mediaHtml = `<iframe src="${convertedUrl}" class="cctv-image" style="border: none; width: 100%; height: 100%;" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
             }
@@ -1184,56 +1218,56 @@ function initCctvMonitor() {
             }
         }
 
-        // 全螢幕按鈕事件綁定 (加入 iOS 虛擬全螢幕與原生全螢幕雙向切換機制)
-        const fsButtons = cctvGrid.querySelectorAll('.cctv-fs-btn');
-        fsButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetId = btn.getAttribute('data-target');
-                const wrapper = document.getElementById(targetId);
-                if (!wrapper) return;
-                
-                // 1. 檢查是否已處於虛擬全螢幕
-                if (wrapper.classList.contains('pseudo-fullscreen')) {
-                    wrapper.classList.remove('pseudo-fullscreen');
-                    updateFSButtonState(wrapper, false);
-                    return;
+        // 使用事件委派監聽全螢幕按鈕點擊，以支援動態 Fallback iframe 生成的按鈕
+        cctvGrid.addEventListener('click', (e) => {
+            const btn = e.target.closest('.cctv-fs-btn');
+            if (!btn) return;
+            
+            const targetId = btn.getAttribute('data-target');
+            const wrapper = document.getElementById(targetId);
+            if (!wrapper) return;
+            
+            // 1. 檢查是否已處於虛擬全螢幕
+            if (wrapper.classList.contains('pseudo-fullscreen')) {
+                wrapper.classList.remove('pseudo-fullscreen');
+                updateFSButtonState(wrapper, false);
+                return;
+            }
+            
+            // 2. 檢查是否已處於原生全螢幕
+            const isCurrentlyFS = document.fullscreenElement === wrapper ||
+                                  document.webkitFullscreenElement === wrapper ||
+                                  document.mozFullScreenElement === wrapper ||
+                                  document.msFullscreenElement === wrapper;
+            if (isCurrentlyFS) {
+                const exitFS = document.exitFullscreen || 
+                               document.webkitExitFullscreen || 
+                               document.mozCancelFullScreen || 
+                               document.msExitFullscreen;
+                if (exitFS) {
+                    exitFS.call(document);
                 }
-                
-                // 2. 檢查是否已處於原生全螢幕
-                const isCurrentlyFS = document.fullscreenElement === wrapper ||
-                                      document.webkitFullscreenElement === wrapper ||
-                                      document.mozFullScreenElement === wrapper ||
-                                      document.msFullscreenElement === wrapper;
-                if (isCurrentlyFS) {
-                    const exitFS = document.exitFullscreen || 
-                                   document.webkitExitFullscreen || 
-                                   document.mozCancelFullScreen || 
-                                   document.msExitFullscreen;
-                    if (exitFS) {
-                        exitFS.call(document);
-                    }
-                    return;
-                }
+                return;
+            }
 
-                // 3. 偵測 Native Fullscreen APIs
-                const requestFS = wrapper.requestFullscreen || 
-                                  wrapper.mozRequestFullScreen || 
-                                  wrapper.webkitRequestFullscreen || 
-                                  wrapper.msRequestFullscreen;
+            // 3. 偵測 Native Fullscreen APIs
+            const requestFS = wrapper.requestFullscreen || 
+                              wrapper.mozRequestFullScreen || 
+                              wrapper.webkitRequestFullscreen || 
+                              wrapper.msRequestFullscreen;
 
-                // 偵測是否為 iOS (iPhone/iPad/iPod) 裝置，iOS 通常限制 div 原生全螢幕
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            // 偵測是否為 iOS (iPhone/iPad/iPod) 裝置，iOS 通常限制 div 原生全螢幕
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-                if (requestFS && !isIOS) {
-                    requestFS.call(wrapper).catch(err => {
-                        console.warn("原生全螢幕呼叫失敗，切換為虛擬全螢幕:", err);
-                        enablePseudoFS(wrapper);
-                    });
-                } else {
-                    // 不支援或 iOS 裝置，直接切換為虛擬全螢幕
+            if (requestFS && !isIOS) {
+                requestFS.call(wrapper).catch(err => {
+                    console.warn("原生全螢幕呼叫失敗，切換為虛擬全螢幕:", err);
                     enablePseudoFS(wrapper);
-                }
-            });
+                });
+            } else {
+                // 不支援或 iOS 裝置，直接切換為虛擬全螢幕
+                enablePseudoFS(wrapper);
+            }
         });
 
         // 輔助函式：啟用虛擬全螢幕

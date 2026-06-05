@@ -1844,6 +1844,17 @@ body {
     pointer-events: none; /* prevent link clicking inside the iframe */
 }
 
+/* 全螢幕模式下的 tw.live iframe 裁剪優化，確保在 100vh 下也能完美滿版 */
+.cctv-card-wrapper.cctv-wrapper-twlive:fullscreen iframe,
+.cctv-card-wrapper.cctv-wrapper-twlive:-webkit-full-screen iframe,
+.cctv-card-wrapper.cctv-wrapper-twlive.pseudo-fullscreen iframe {
+    width: 100% !important;
+    height: calc(100% + 160px) !important;
+    margin-top: -95px !important;
+    transform: scale(1.15) !important;
+    transform-origin: top center !important;
+}
+
 /* Settings Gear button in header */
 .btn-gear {
     background: rgba(255, 255, 255, 0.05);

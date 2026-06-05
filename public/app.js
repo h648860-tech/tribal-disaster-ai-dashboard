@@ -1,5 +1,29 @@
 // Tribal Emergency AI Dashboard App Logic
 
+const CURRENT_VERSION = "2.4.8";
+
+async function checkSystemVersion() {
+    try {
+        const res = await fetch(`version.json?t=${Date.now()}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.version && data.version !== CURRENT_VERSION) {
+                console.log(`New version detected: ${data.version}. Reloading...`);
+                window.location.reload(true);
+            }
+        }
+    } catch (e) {
+        console.warn("Version check failed", e);
+    }
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        checkSystemVersion();
+    }
+});
+setTimeout(checkSystemVersion, 5000);
+
 // 全域 API 金鑰，自 Firebase Firestore 載入，取代本機快取以保安全
 const globalApiKeys = {
     cwaApiKey: "",

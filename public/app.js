@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.1";
+const CURRENT_VERSION = "2.5.2";
 
 async function checkSystemVersion() {
     try {
@@ -1048,12 +1048,24 @@ function initCctvMonitor() {
     // 轉換為直連網址或已知 CCTV 格式
     function convertCctvUrl(url) {
         if (!url) return url;
-        const trimmed = url.trim();
         
-        // 使用正則匹配任何含有公路局測站 ID 的字串 (如 T9-422K+650)
-        const match = trimmed.match(/(T\d+-\d+[kK]\+\d+(?:-[a-zA-Z0-9]+)?)/i);
+        let decodedUrl = url.trim();
+        try {
+            // 解碼 URL 以還原 %2B 為 +，同時還原空白等
+            decodedUrl = decodeURIComponent(decodedUrl);
+        } catch (e) {
+            console.warn("解碼 URL 失敗:", e);
+        }
+        
+        // 使用正則匹配任何含有公路局測站 ID 的字串 (如 T9-422K+650, T9-422K 650, T9-422K650 等)
+        const match = decodedUrl.match(/(T\d+-\d+[kK][\+\s]?\d+(?:-[a-zA-Z0-9]+)?)/i);
         if (match) {
-            const cameraId = match[1];
+            let cameraId = match[1];
+            // 標準化：確保 K 之後有 + 連接符號
+            if (!cameraId.includes("+")) {
+                cameraId = cameraId.replace(/([kK])\s*(\d+)/i, "$1+$2");
+            }
+            
             const lowerId = cameraId.toLowerCase();
             
             // 比對已知確切伺服器以加速首次載入
@@ -1068,7 +1080,7 @@ function initCctvMonitor() {
             }
             return `https://cctv-ss05.thb.gov.tw:443/${cameraId}`;
         }
-        return trimmed;
+        return url.trim(); // 沒匹配成功則回傳原本經過整理的網址
     }
     
     function renderCctvGrid() {

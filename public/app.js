@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.2";
+const CURRENT_VERSION = "2.5.3";
 
 async function checkSystemVersion() {
     try {

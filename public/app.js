@@ -2,14 +2,53 @@
 
 const CURRENT_VERSION = "2.5.3";
 
+// 清理 URL 中的版本參數並重置防重載鎖
+try {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('sys_v')) {
+        const sysV = urlParams.get('sys_v');
+        if (sysV === CURRENT_VERSION) {
+            urlParams.delete('sys_v');
+            const newSearch = urlParams.toString();
+            const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash;
+            window.history.replaceState({}, '', newUrl);
+            localStorage.removeItem('last_reload_attempt_version');
+            localStorage.removeItem('last_reload_attempt_count');
+        }
+    }
+} catch (e) {
+    console.warn("Clean URL parameters failed", e);
+}
+
 async function checkSystemVersion() {
     try {
         const res = await fetch(`version.json?t=${Date.now()}`);
         if (res.ok) {
             const data = await res.json();
             if (data.version && data.version !== CURRENT_VERSION) {
-                console.log(`New version detected: ${data.version}. Reloading...`);
-                window.location.reload(true);
+                console.log(`New version detected: ${data.version}. CURRENT_VERSION is ${CURRENT_VERSION}`);
+                
+                // 檢查是否最近已經嘗試重載過此版本
+                const lastAttemptVersion = localStorage.getItem('last_reload_attempt_version');
+                const attemptCount = parseInt(localStorage.getItem('last_reload_attempt_count') || '0', 10);
+                
+                if (lastAttemptVersion === data.version && attemptCount >= 1) {
+                    console.warn(`Already attempted to reload for version ${data.version}. Aborting to prevent reload loop.`);
+                    return;
+                }
+                
+                // 記錄嘗試
+                localStorage.setItem('last_reload_attempt_version', data.version);
+                localStorage.setItem('last_reload_attempt_count', String(attemptCount + 1));
+                
+                // 使用帶有版本號的 URL 重定向，強制瀏覽器/iOS Web Clip 抓取最新 index.html 和 JS
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('sys_v', data.version);
+                window.location.replace(currentUrl.toString());
+            } else {
+                // 如果版本一致，清除重載嘗試記錄
+                localStorage.removeItem('last_reload_attempt_version');
+                localStorage.removeItem('last_reload_attempt_count');
             }
         }
     } catch (e) {
@@ -22,7 +61,7 @@ document.addEventListener("visibilitychange", () => {
         checkSystemVersion();
     }
 });
-setTimeout(checkSystemVersion, 5000);
+setTimeout(checkSystemVersion, 15000);
 
 // 全域 API 金鑰，自 Firebase Firestore 載入，取代本機快取以保安全
 const globalApiKeys = {

@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.3";
+const CURRENT_VERSION = "2.5.4";
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -1089,14 +1089,21 @@ function initCctvMonitor() {
         if (!url) return url;
         
         let decodedUrl = url.trim();
-        try {
-            // 解碼 URL 以還原 %2B 為 +，同時還原空白等
-            decodedUrl = decodeURIComponent(decodedUrl);
-        } catch (e) {
-            console.warn("解碼 URL 失敗:", e);
+        let lastUrl = "";
+        let limit = 5;
+        // 循環解碼，徹底還原多重 URL 編碼的字元（例如 %252B -> %2B -> +）
+        while (decodedUrl.includes('%') && decodedUrl !== lastUrl && limit > 0) {
+            lastUrl = decodedUrl;
+            try {
+                decodedUrl = decodeURIComponent(decodedUrl);
+            } catch (e) {
+                console.warn("解碼 URL 失敗:", e);
+                break;
+            }
+            limit--;
         }
         
-        // 使用正則匹配任何含有公路局測站 ID 的字串 (如 T9-422K+650, T9-422K 650, T9-422K650 等)
+        // 使用正則匹配 any 含有公路局測站 ID 的字串 (如 T9-422K+650, T9-422K 650, T9-422K650 等)
         const match = decodedUrl.match(/(T\d+-\d+[kK][\+\s]?\d+(?:-[a-zA-Z0-9]+)?)/i);
         if (match) {
             let cameraId = match[1];

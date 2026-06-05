@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.4.9";
+const CURRENT_VERSION = "2.5.0";
 
 async function checkSystemVersion() {
     try {
@@ -1044,8 +1044,11 @@ function initCctvMonitor() {
                     if (lowerId === "t9-423k+000") return "https://cctv-ss05.thb.gov.tw:443/T9-423K+000";
                     if (lowerId === "t9-421k+500-1" || lowerId === "t9-421k+500") return "https://cctv-ss07.thb.gov.tw:443/T9-421k+500-1";
                     
-                    // 針對公路局台9線進行自動解析匹配 (預設 ss05)
-                    if (lowerId.startsWith("t9-")) {
+                    // 針對公路局所有省道 CCTV (例如 T9-, T26-, T11- 等) 進行自動匹配
+                    if (/^t\d+-/.test(lowerId)) {
+                        if (lowerId.startsWith("t9-421k")) {
+                            return `https://cctv-ss07.thb.gov.tw:443/${id}`;
+                        }
                         return `https://cctv-ss05.thb.gov.tw:443/${id}`;
                     }
                 }

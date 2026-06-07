@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.5";
+const CURRENT_VERSION = "2.5.6";
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -696,15 +696,20 @@ function initWarningSystem() {
         const [stationId, stationName] = savedAlertStation.split('|');
         
         // 更新 UI 標題
-        const statLbl = document.querySelector('.warning-stats .stat-lbl');
-        if (statLbl) {
-            statLbl.textContent = `${stationName} 24H 累積降雨`;
+        const warningRainLbl = document.getElementById('warningRainLbl');
+        if (warningRainLbl) {
+            warningRainLbl.textContent = `${stationName} 24H 累積降雨`;
+        }
+        const warningRain1hLbl = document.getElementById('warningRain1hLbl');
+        if (warningRain1hLbl) {
+            warningRain1hLbl.textContent = `${stationName} 1H 降雨量`;
         }
         
         // If no api key is found, fallback to simulated safe rain (15 ~ 45mm)
         if (!apiKey) {
             const simulatedRain = 15.0 + Math.random() * 30.0;
-            updateWarningLevel(simulatedRain);
+            const simulatedRain1h = 0.5 + Math.random() * 4.0;
+            updateWarningLevel(simulatedRain, simulatedRain1h);
             return;
         }
 
@@ -717,6 +722,7 @@ function initWarningSystem() {
             const data = await res.json();
             
             let rain24h = null;
+            let rain1h = null;
             if (data && data.records && data.records.Station) {
                 const s = data.records.Station.find(st => st.StationId === stationId || st.StationName === stationName);
                 if (s) {
@@ -727,11 +733,20 @@ function initWarningSystem() {
                     } else {
                         rain24h = findValByKey(s, "Precipitation") || findValByKey(s, "PrecipitationMax") || 0;
                     }
+
+                    const past1 = s.RainfallElement && (s.RainfallElement.Past1hr || s.RainfallElement.Past1Hr);
+                    if (past1 && past1.Precipitation !== undefined) {
+                        const val = past1.Precipitation;
+                        rain1h = (typeof val === 'object' && val !== null && val.value !== undefined) ? parseFloat(val.value) : parseFloat(val);
+                    } else {
+                        rain1h = findValByKey(s, "Past1hr") || findValByKey(s, "Past1Hr") || 0;
+                    }
                 }
             }
             
             if (rain24h !== null) {
-                updateWarningLevel(rain24h);
+                if (rain1h === null) rain1h = 0.0;
+                updateWarningLevel(rain24h, rain1h);
             } else {
                 throw new Error(`無法定位${stationName}雨量數據`);
             }
@@ -742,7 +757,7 @@ function initWarningSystem() {
             if (warningTimeText) {
                 warningTimeText.innerHTML = `<span style="color: var(--color-warning); font-size: 0.75rem;">⚠️ CWA API 連線異常 (${error.message})，已切換至備援模擬值</span>`;
             }
-            updateWarningLevel(18.5);
+            updateWarningLevel(18.5, 2.5);
         }
     }
 
@@ -786,21 +801,21 @@ function initWarningSystem() {
         isSimulationMode = true;
         updateTimerDisplay();
         hasBeenSilenced = false; // Reset silencer for fresh simulation
-        updateWarningLevel(15.0);
+        updateWarningLevel(15.0, 0.5);
     });
 
     btnSimYellow.addEventListener('click', () => {
         isSimulationMode = true;
         updateTimerDisplay();
         hasBeenSilenced = false;
-        updateWarningLevel(320.0);
+        updateWarningLevel(320.0, 35.0);
     });
 
     btnSimRed.addEventListener('click', () => {
         isSimulationMode = true;
         updateTimerDisplay();
         hasBeenSilenced = false;
-        updateWarningLevel(485.0);
+        updateWarningLevel(485.0, 58.0);
     });
 
     // Run initial fetch and trigger timer
@@ -894,16 +909,20 @@ function initSatelliteMap() {
     };
 }
 
-function updateWarningLevel(rain) {
+function updateWarningLevel(rain, rain1h) {
     const warningBanner = document.getElementById('warningBanner');
     const warningLevelTitle = document.getElementById('warningLevelTitle');
     const warningLevelDesc = document.getElementById('warningLevelDesc');
     const warningRainVal = document.getElementById('warningRainVal');
+    const warningRain1hVal = document.getElementById('warningRain1hVal');
     const warningHeaderIcon = document.getElementById('warningHeaderIcon');
     const header = document.querySelector('.app-header');
 
     if (warningRainVal) {
         warningRainVal.innerHTML = `${rain.toFixed(1)} <span class="unit">mm</span>`;
+    }
+    if (warningRain1hVal) {
+        warningRain1hVal.innerHTML = `${(rain1h !== undefined && rain1h !== null) ? rain1h.toFixed(1) : '0.0'} <span class="unit">mm</span>`;
     }
 
     if (!warningBanner || !header) return;
@@ -2397,6 +2416,7 @@ function initTyphoonData() {
 
             // 1. Process Rain Data
             let rain24h = null;
+            let rain1h = null;
             if (rainRes && rainRes.records && rainRes.records.Station) {
                 const s = rainRes.records.Station.find(st => st.StationId === rainId || st.StationName === rainName);
                 if (s) {
@@ -2406,6 +2426,14 @@ function initTyphoonData() {
                         rain24h = (typeof val === 'object' && val !== null && val.value !== undefined) ? parseFloat(val.value) : parseFloat(val);
                     } else {
                         rain24h = findValByKey(s, "Precipitation") || findValByKey(s, "PrecipitationMax") || 0;
+                    }
+
+                    const past1 = s.RainfallElement && (s.RainfallElement.Past1hr || s.RainfallElement.Past1Hr);
+                    if (past1 && past1.Precipitation !== undefined) {
+                        const val = past1.Precipitation;
+                        rain1h = (typeof val === 'object' && val !== null && val.value !== undefined) ? parseFloat(val.value) : parseFloat(val);
+                    } else {
+                        rain1h = findValByKey(s, "Past1hr") || findValByKey(s, "Past1Hr") || 0;
                     }
                 }
             }
@@ -2435,7 +2463,7 @@ function initTyphoonData() {
             }
 
             // Rendering actual results
-            renderRealData(rain24h, maxGustMps, warnDesc, rainName, windName);
+            renderRealData(rain24h, rain1h, maxGustMps, warnDesc, rainName, windName);
 
         } catch (error) {
             console.warn(error.message);
@@ -2485,17 +2513,39 @@ function initTyphoonData() {
     }
 
     // Render Real fetched CWA Data
-    function renderRealData(rain, gust, warning, rainName, windName) {
+    function renderRealData(rain24h, rain1h, gust, warning, rainName, windName) {
         modalLoading.classList.add('hidden');
         modalResults.classList.remove('hidden');
 
+        // 1H Rain display
+        const rain1hVal = document.getElementById('rain1hVal');
+        const rain1hStatus = document.getElementById('rain1hStatus');
+        if (rain1hVal && rain1hStatus) {
+            if (rain1h !== null) {
+                rain1hVal.innerHTML = `${rain1h.toFixed(1)} <span class="unit">mm</span>`;
+                if (rain1h >= 40) {
+                    rain1hStatus.textContent = "🔴 警戒：短時強降雨警戒！";
+                    rain1hStatus.style.color = "#e63946";
+                } else if (rain1h >= 15) {
+                    rain1hStatus.textContent = "🟡 注意：短時強降雨注意。";
+                    rain1hStatus.style.color = "#ffb703";
+                } else {
+                    rain1hStatus.textContent = "🟢 正常：降雨強度在安全範圍。";
+                    rain1hStatus.style.color = "#2ec4b6";
+                }
+            } else {
+                rain1hVal.textContent = "無資料";
+                rain1hStatus.textContent = "測站維護中或未回傳。";
+            }
+        }
+
         // Rain display
-        if (rain !== null) {
-            rainVal.innerHTML = `${rain.toFixed(1)} <span class="unit">mm</span>`;
-            if (rain >= 200) {
+        if (rain24h !== null) {
+            rainVal.innerHTML = `${rain24h.toFixed(1)} <span class="unit">mm</span>`;
+            if (rain24h >= 200) {
                 rainStatus.textContent = "🔴 警戒：已達大豪雨等級！";
                 rainStatus.style.color = "#e63946";
-            } else if (rain >= 80) {
+            } else if (rain24h >= 80) {
                 rainStatus.textContent = "🟡 注意：已達大雨等級。";
                 rainStatus.style.color = "#ffb703";
             } else {
@@ -2529,7 +2579,7 @@ function initTyphoonData() {
         typhoonNews.textContent = warning;
 
         // Compile LINE formatted message
-        const summary = compileLineSummary(rain, gust, warning, false, rainName, windName);
+        const summary = compileLineSummary(rain1h, rain24h, gust, warning, false, rainName, windName);
         lineSummaryText.value = summary;
 
         triggerAICopilotBroadcast(summary);
@@ -2540,9 +2590,18 @@ function initTyphoonData() {
         modalLoading.classList.add('hidden');
         modalResults.classList.remove('hidden');
 
+        const simRain1h = 42.5;
         const simRain = 342.5;
         const simGust = 30.2;
         const simWarning = "【強烈颱風瑪娃海陸上警報】\n目前颱風中心在鵝鑾鼻東南方 280 公里處，向西北西移動。其暴風圈已覆蓋台東及恆春半島，預計未來 24 小時花東山區將迎來劇烈雨勢，累積雨量可達 500mm 以上。請東半部及南部山區居民做好土石流防範準備！";
+
+        const rain1hVal = document.getElementById('rain1hVal');
+        const rain1hStatus = document.getElementById('rain1hStatus');
+        if (rain1hVal && rain1hStatus) {
+            rain1hVal.innerHTML = `${simRain1h.toFixed(1)} <span class="unit">mm</span>`;
+            rain1hStatus.textContent = "🔴 警戒：短時強降雨警戒！";
+            rain1hStatus.style.color = "#e63946";
+        }
 
         rainVal.innerHTML = `${simRain.toFixed(1)} <span class="unit">mm</span>`;
         rainStatus.textContent = "🔴 警戒：已突破超大豪雨臨界值！";
@@ -2555,29 +2614,36 @@ function initTyphoonData() {
 
         typhoonNews.textContent = simWarning;
 
-        const summary = compileLineSummary(simRain, simGust, simWarning, true, rainName, windName);
+        const summary = compileLineSummary(simRain1h, simRain, simGust, simWarning, true, rainName, windName);
         lineSummaryText.value = summary;
 
         triggerAICopilotBroadcast(summary);
     }
 
     // Format the text specifically for LINE transmission
-    function compileLineSummary(rain, gust, warning, isSimulated, rainName, windName) {
+    function compileLineSummary(rain1h, rain24h, gust, warning, isSimulated, rainName, windName) {
         const now = new Date();
         const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         
-        let rainStr = rain !== null ? `${rain.toFixed(1)} mm` : "無回傳";
+        let rain1hStr = rain1h !== null ? `${rain1h.toFixed(1)} mm` : "無回傳";
+        let rain24hStr = rain24h !== null ? `${rain24h.toFixed(1)} mm` : "無回傳";
         let gustStr = gust !== null ? `${toBeaufort(gust)} 級 (${gust.toFixed(1)} m/s)` : "無回傳";
         
-        if (rain >= 200) rainStr += " ⚠️ (大豪雨警戒)";
+        if (rain1h >= 40) {
+            rain1hStr += " ⚠️ (短時強降雨警戒)";
+        } else if (rain1h >= 15) {
+            rain1hStr += " ⚠️ (短時強降雨注意)";
+        }
+        if (rain24h >= 200) rain24hStr += " ⚠️ (大豪雨警戒)";
         if (gust >= 17.2) gustStr += " ⚠️ (強烈陣風警戒)";
 
         return `⚠️【部落防汛警戒通報】⚠️
 發布時間：${timeStr}${isSimulated ? ' (模擬氣象站即時數據)' : ''}
 ---------------------------
 📍 關鍵測站監測數據：
-1. 🌧️ ${rainName} (24H累積降雨)：${rainStr}
-2. 💨 ${windName} (最大陣風)：${gustStr}
+1. 🌧️ ${rainName} (1H降雨量)：${rain1hStr}
+2. 🌧️ ${rainName} (24H累積降雨)：${rain24hStr}
+3. 💨 ${windName} (最大陣風)：${gustStr}
  
 🌀 最新颱風動態摘要：
 ${warning.substring(0, 180)}...

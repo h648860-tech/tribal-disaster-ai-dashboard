@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="凱芳防救災">
     
-    <link rel="stylesheet" href="style.css?v=2.2.9">
+    <link rel="stylesheet" href="style.css?v=2.3.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
@@ -427,7 +427,11 @@
                     <!-- Rainfall Stats -->
                     <div class="warning-stats">
                         <div class="stat-box">
-                            <span class="stat-lbl">山豬窟 24H 累積降雨</span>
+                            <span class="stat-lbl" id="warningRain1hLbl">山豬窟 1H 降雨量</span>
+                            <div class="stat-val" id="warningRain1hVal">0.0 <span class="unit">mm</span></div>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-lbl" id="warningRainLbl">山豬窟 24H 累積降雨</span>
                             <div class="stat-val" id="warningRainVal">0.0 <span class="unit">mm</span></div>
                         </div>
                         <div class="stat-box">
@@ -563,6 +567,11 @@
                         <!-- LEFT SIDE: WEATHER STATS & WARNING -->
                         <div class="typhoon-modal-left">
                             <div class="data-block-grid">
+                                <div class="data-block card-mini text-center">
+                                    <h3 id="typhoonRain1hTitle">🌧️ 山豬窟 1H 降雨量</h3>
+                                    <div class="data-value text-accent" id="rain1hVal">-- <span class="unit">mm</span></div>
+                                    <p class="data-status" id="rain1hStatus">取得中...</p>
+                                </div>
                                 <div class="data-block card-mini text-center">
                                     <h3 id="typhoonRainTitle">🌧️ 山豬窟 24H 累積降雨</h3>
                                     <div class="data-value text-accent" id="rainVal">-- <span class="unit">mm</span></div>
@@ -1045,6 +1054,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=2.5.5"></script>
+    <script src="app.js?v=2.5.6"></script>
 </body>
 </html>

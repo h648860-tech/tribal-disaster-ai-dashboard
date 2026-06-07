@@ -1059,9 +1059,14 @@ body {
 /* Results Formatting */
 .data-block-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     margin-bottom: 1rem;
+}
+@media (max-width: 560px) {
+    .data-block-grid {
+        grid-template-columns: 1fr;
+    }
 }
 .text-center {
     text-align: center;
@@ -1323,11 +1328,11 @@ body {
 /* Stats Area */
 .warning-stats {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1.2fr;
     gap: 1rem;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
     .warning-stats {
         grid-template-columns: 1fr;
     }

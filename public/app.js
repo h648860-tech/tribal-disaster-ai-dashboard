@@ -1,6 +1,32 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.14";
+const CURRENT_VERSION = "2.5.15";
+
+// 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
+function maskName(name) {
+    if (!name) return "";
+    const len = name.length;
+    if (len <= 2) return name.charAt(0) + "*";
+    if (len === 3) return name.charAt(0) + "*" + name.charAt(2);
+    return name.charAt(0) + "*".repeat(len - 2) + name.charAt(len - 1);
+}
+
+function maskPhone(phone) {
+    if (!phone) return "";
+    const clean = phone.replace(/[-\s]/g, '');
+    if (clean.length >= 9) {
+        return phone.substring(0, 4) + "****" + phone.substring(8);
+    }
+    return phone.replace(/.(?=.{2})/g, '*');
+}
+
+function maskAddress(addr) {
+    if (!addr) return "";
+    let masked = addr.replace(/(?:[0-9]+|[一二三四五六七八九十]+)鄰/g, '*鄰');
+    masked = masked.replace(/(?:[0-9]+(?:之[0-9]+)?|[一二三四五六七八九十百]+(?:之[一二三四五六七八九十百]+)?)號/g, '**號');
+    return masked;
+}
+
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -3372,31 +3398,6 @@ function initResidentsDatabase() {
             });
     }
     
-    // 去識別化工具函式
-    function maskName(name) {
-        if (!name) return "";
-        const len = name.length;
-        if (len <= 2) return name.charAt(0) + "*";
-        if (len === 3) return name.charAt(0) + "*" + name.charAt(2);
-        return name.charAt(0) + "*".repeat(len - 2) + name.charAt(len - 1);
-    }
-
-    function maskPhone(phone) {
-        if (!phone) return "";
-        const clean = phone.replace(/[-\s]/g, '');
-        if (clean.length >= 9) {
-            return phone.substring(0, 4) + "****" + phone.substring(8);
-        }
-        return phone.replace(/.(?=.{2})/g, '*');
-    }
-
-    function maskAddress(addr) {
-        if (!addr) return "";
-        let masked = addr.replace(/(?:[0-9]+|[一二三四五六七八九十]+)鄰/g, '*鄰');
-        masked = masked.replace(/(?:[0-9]+(?:之[0-9]+)?|[一二三四五六七八九十百]+(?:之[一二三四五六七八九十百]+)?)號/g, '**號');
-        return masked;
-    }
-
     // Render Table
     function renderResidentsTable() {
         const query = residentsSearch.value.trim().toLowerCase();

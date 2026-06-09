@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.16";
+const CURRENT_VERSION = "2.5.17";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -2595,8 +2595,10 @@ function initTyphoonData() {
         
         // 更新 UI 標題
         const rainTitleEl = document.getElementById('typhoonRainTitle');
+        const rain1hTitleEl = document.getElementById('typhoonRain1hTitle');
         const windTitleEl = document.getElementById('typhoonWindTitle');
         if (rainTitleEl) rainTitleEl.textContent = `🌧️ ${rainName} 24H 累積降雨`;
+        if (rain1hTitleEl) rain1hTitleEl.textContent = `🌧️ ${rainName} 1H 降雨量`;
         if (windTitleEl) windTitleEl.textContent = `💨 ${windName} 最大陣風資料`;
 
         // If no API Key is provided, use simulated high-quality current CWA data

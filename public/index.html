@@ -402,14 +402,9 @@
                     </div>
                     <span class="sensor-badge" style="padding: 0.15rem 0.35rem; display: flex; align-items: center; gap: 0.25rem;">
                         📡 監控測站：
-                        <select id="alertStationSelect" style="background: transparent; border: none; color: var(--color-cyan); font-weight: 600; font-size: 0.75rem; cursor: pointer; outline: none; padding: 0;">
-                            <option value="C0S990|山豬窟" style="background:#08090c; color:#ffffff;">山豬窟 (C0S990)</option>
-                            <option value="46762|大武" style="background:#08090c; color:#ffffff;">大武 (46762)</option>
-                            <option value="C0S730|達仁" style="background:#08090c; color:#ffffff;">達仁 (C0S730)</option>
-                            <option value="C0S810|安朔" style="background:#08090c; color:#ffffff;">安朔 (C0S810)</option>
-                            <option value="C0S830|森永" style="background:#08090c; color:#ffffff;">森永 (C0S830)</option>
-                            <option value="custom" style="background:#08090c; color:#ffffff;">-- 自訂測站 --</option>
-                        </select>
+                        <button id="btnSelectAlertStation" class="btn-picker-trigger" style="background: transparent; border: none; color: var(--color-cyan); font-weight: 600; font-size: 0.75rem; cursor: pointer; padding: 0; outline: none; text-decoration: underline;">
+                            山豬窟 (C0S990)
+                        </button>
                     </span>
                 </div>
                 <div class="card-body warning-body">
@@ -1095,6 +1090,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=2.5.17"></script>
+    <script src="app.js?v=2.5.18"></script>
 </body>
 </html>

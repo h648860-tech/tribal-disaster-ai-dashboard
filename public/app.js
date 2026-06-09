@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.17";
+const CURRENT_VERSION = "2.5.18";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -31,6 +31,11 @@ function maskAddress(addr) {
 // 全台測站動態快取
 let cwaCachedRainStations = [];
 let cwaCachedWindStations = [];
+
+// 全域測站選擇管理器
+let stationPickerManager = {
+    open: null
+};
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -727,7 +732,7 @@ function initWarningSystem() {
     const btnWarningRefresh = document.getElementById('btnWarningRefresh');
     const warningTimeText = document.getElementById('warningTimeText');
     const btnSilenceAlarm = document.getElementById('btnSilenceAlarm');
-    const alertStationSelect = document.getElementById('alertStationSelect');
+    const btnSelectAlertStation = document.getElementById('btnSelectAlertStation');
     
     const btnSimSafe = document.getElementById('btnSimSafe');
     const btnSimYellow = document.getElementById('btnSimYellow');
@@ -744,70 +749,30 @@ function initWarningSystem() {
         localStorage.setItem('alertStation', savedAlertStation);
     }
     
-    function syncAlertStationUI() {
-        if (!alertStationSelect) return;
-        
-        let hasOption = false;
-        for (let i = 0; i < alertStationSelect.options.length; i++) {
-            if (alertStationSelect.options[i].value === savedAlertStation) {
-                hasOption = true;
-                break;
-            }
-        }
-        
-        if (!hasOption && savedAlertStation !== 'custom') {
-            const [stationId, stationName] = savedAlertStation.split('|');
-            if (stationId && stationName) {
-                const customOpt = document.createElement('option');
-                customOpt.value = savedAlertStation;
-                customOpt.textContent = `自訂：${stationName} (${stationId})`;
-                customOpt.style.background = "#08090c";
-                customOpt.style.color = "#ffffff";
-                alertStationSelect.insertBefore(customOpt, alertStationSelect.lastElementChild);
-            }
-        }
-        
-        alertStationSelect.value = savedAlertStation;
+    function updateAlertStationButtonText() {
+        if (!btnSelectAlertStation) return;
+        const [stationId, stationName] = savedAlertStation.split('|');
+        btnSelectAlertStation.textContent = `${stationName} (${stationId})`;
     }
+    updateAlertStationButtonText();
     
-    if (alertStationSelect) {
-        syncAlertStationUI();
-        
-        alertStationSelect.addEventListener('change', () => {
-            let selectedVal = alertStationSelect.value;
-            if (selectedVal === 'custom') {
-                const customId = prompt("請輸入自訂雨量觀測站代碼 (例如 C0S810)：")?.trim();
-                const customName = prompt("請輸入自訂雨量觀測站名稱 (例如 安朔)：")?.trim();
-                if (customId && customName) {
-                    const val = `${customId}|${customName}`;
-                    savedAlertStation = val;
-                    localStorage.setItem('alertStation', val);
-                    
-                    // 移除舊的自訂 option (如果存在)
-                    for (let i = 0; i < alertStationSelect.options.length; i++) {
-                        if (alertStationSelect.options[i].text.startsWith('自訂：')) {
-                            alertStationSelect.remove(i);
-                            break;
-                        }
-                    }
-                    
-                    const customOpt = document.createElement('option');
-                    customOpt.value = val;
-                    customOpt.textContent = `自訂：${customName} (${customId})`;
-                    customOpt.style.background = "#08090c";
-                    customOpt.style.color = "#ffffff";
-                    alertStationSelect.insertBefore(customOpt, alertStationSelect.lastElementChild);
-                    alertStationSelect.value = val;
-                } else {
-                    alert("輸入無效，恢復原測站。");
-                    alertStationSelect.value = savedAlertStation;
-                    return;
-                }
-            } else {
-                savedAlertStation = selectedVal;
-                localStorage.setItem('alertStation', selectedVal);
+    if (btnSelectAlertStation) {
+        btnSelectAlertStation.addEventListener('click', () => {
+            if (typeof stationPickerManager.open === 'function') {
+                const stations = cwaCachedRainStations.length > 0 ? cwaCachedRainStations : [
+                    { id: "C0S990", name: "山豬窟", county: "臺東縣" },
+                    { id: "46762", name: "大武", county: "臺東縣" },
+                    { id: "C0S730", name: "達仁", county: "臺東縣" },
+                    { id: "C0S810", name: "安朔", county: "臺東縣" },
+                    { id: "C0S830", name: "森永", county: "臺東縣" }
+                ];
+                stationPickerManager.open('alert', savedAlertStation, "📡 選擇監控觀測站", stations, (finalVal) => {
+                    savedAlertStation = finalVal;
+                    localStorage.setItem('alertStation', finalVal);
+                    updateAlertStationButtonText();
+                    fetchRainfallData();
+                });
             }
-            fetchRainfallData();
         });
     }
 
@@ -2432,21 +2397,13 @@ function initTyphoonData() {
     function initStationPickerModal() {
         if (!stationPickerModal) return;
 
-        function openPicker(type) {
-            activePickerType = type;
-            stationPickerModal.classList.add('active');
+        let activeCallback = null;
 
-            let stations = [];
-            let currentVal = "";
-            if (type === 'rain') {
-                stationPickerTitle.textContent = "🌧️ 選擇雨量觀測站";
-                stations = cwaCachedRainStations.length > 0 ? cwaCachedRainStations : defaultRainStations;
-                currentVal = savedRainStation;
-            } else {
-                stationPickerTitle.textContent = "💨 選擇風速觀測站";
-                stations = cwaCachedWindStations.length > 0 ? cwaCachedWindStations : defaultWindStations;
-                currentVal = savedWindStation;
-            }
+        function openPicker(type, currentVal, title, stations, callback) {
+            activePickerType = type;
+            activeCallback = callback;
+            stationPickerModal.classList.add('active');
+            stationPickerTitle.textContent = title;
 
             const [currentId, currentName] = currentVal.split('|');
 
@@ -2493,8 +2450,30 @@ function initTyphoonData() {
             }
         }
 
-        if (btnSelectRainStation) btnSelectRainStation.addEventListener('click', () => openPicker('rain'));
-        if (btnSelectWindStation) btnSelectWindStation.addEventListener('click', () => openPicker('wind'));
+        stationPickerManager.open = openPicker;
+
+        if (btnSelectRainStation) {
+            btnSelectRainStation.addEventListener('click', () => {
+                const stations = cwaCachedRainStations.length > 0 ? cwaCachedRainStations : defaultRainStations;
+                openPicker('rain', savedRainStation, "🌧️ 選擇雨量觀測站", stations, (finalVal) => {
+                    savedRainStation = finalVal;
+                    localStorage.setItem('typhoonRainStation', finalVal);
+                    updateStationButtonsText();
+                    fetchTyphoonData();
+                });
+            });
+        }
+        if (btnSelectWindStation) {
+            btnSelectWindStation.addEventListener('click', () => {
+                const stations = cwaCachedWindStations.length > 0 ? cwaCachedWindStations : defaultWindStations;
+                openPicker('wind', savedWindStation, "💨 選擇風速觀測站", stations, (finalVal) => {
+                    savedWindStation = finalVal;
+                    localStorage.setItem('typhoonWindStation', finalVal);
+                    updateStationButtonsText();
+                    fetchTyphoonData();
+                });
+            });
+        }
 
         function closePicker() {
             stationPickerModal.classList.remove('active');
@@ -2519,17 +2498,10 @@ function initTyphoonData() {
                     finalVal = pickerStationSelect.value;
                 }
 
-                if (activePickerType === 'rain') {
-                    savedRainStation = finalVal;
-                    localStorage.setItem('typhoonRainStation', finalVal);
-                } else {
-                    savedWindStation = finalVal;
-                    localStorage.setItem('typhoonWindStation', finalVal);
+                if (activeCallback) {
+                    activeCallback(finalVal);
                 }
-
-                updateStationButtonsText();
                 closePicker();
-                fetchTyphoonData();
             });
         }
     }

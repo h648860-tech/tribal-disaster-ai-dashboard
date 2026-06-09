@@ -45,6 +45,10 @@
       {
         "source": "/api/askGemini",
         "function": "askGemini"
+      },
+      {
+        "source": "/api/geocode",
+        "function": "geocode"
       }
     ]
   }

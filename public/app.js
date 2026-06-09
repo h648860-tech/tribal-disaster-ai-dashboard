@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.12";
+const CURRENT_VERSION = "2.5.13";
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -1596,6 +1596,8 @@ function initAuthSystem() {
     const userTableBody = document.getElementById('userTableBody');
     const cwaApiKeyInput = document.getElementById('cwaApiKey');
     const geminiApiKeyInput = document.getElementById('geminiApiKey');
+    const tgosAppIdInput = document.getElementById('tgosAppId');
+    const tgosApiKeyInput = document.getElementById('tgosApiKey');
     const btnSaveSettings = document.getElementById('btnSaveSettings');
     
     const appContainer = document.querySelector('.app-container');
@@ -1989,6 +1991,8 @@ function initAuthSystem() {
             if (doc.exists) {
                 cwaApiKeyInput.value = doc.data().cwaApiKey || "";
                 geminiApiKeyInput.value = doc.data().geminiApiKey || "";
+                if (tgosAppIdInput) tgosAppIdInput.value = doc.data().tgosAppId || "";
+                if (tgosApiKeyInput) tgosApiKeyInput.value = doc.data().tgosApiKey || "";
             }
         }).catch(err => console.error("後台載入金鑰錯誤:", err));
     }
@@ -1997,6 +2001,8 @@ function initAuthSystem() {
         btnSaveSettings.addEventListener('click', async () => {
             const cwaKey = cwaApiKeyInput.value.trim();
             const geminiKey = geminiApiKeyInput.value.trim();
+            const tgosId = tgosAppIdInput ? tgosAppIdInput.value.trim() : "";
+            const tgosKey = tgosApiKeyInput ? tgosApiKeyInput.value.trim() : "";
 
             btnSaveSettings.disabled = true;
             btnSaveSettings.textContent = "⏳ 正在儲存金鑰...";
@@ -2004,7 +2010,9 @@ function initAuthSystem() {
             try {
                 await db.collection('settings').doc('keys').set({
                     cwaApiKey: cwaKey,
-                    geminiApiKey: geminiKey
+                    geminiApiKey: geminiKey,
+                    tgosAppId: tgosId,
+                    tgosApiKey: tgosKey
                 });
                 
                 // 同步至記憶體
@@ -2813,6 +2821,24 @@ function initLocationPositioning() {
 
     if (!btnLocate || !locLatInput || !locLngInput || !mapIframe) return;
 
+    // 輔助函式：剝皮裁剪地址以進行模糊比對
+    function peelAddress(addr) {
+        // 逐步去除門牌、鄰里、弄巷、路名
+        let newAddr = addr.replace(/(?:[0-9]+(?:之[0-9]+)?|[一二三四五六七八九十百]+(?:之[一二三四五六七八九十百]+)?)號$/, '');
+        if (newAddr !== addr) return newAddr.trim();
+
+        newAddr = addr.replace(/(?:[0-9]+|[一二三四五六七八九十百]+)鄰$/, '');
+        if (newAddr !== addr) return newAddr.trim();
+
+        newAddr = addr.replace(/(?:[0-9]+|[一二三四五六七八九十百]+)(?:巷|弄)$/, '');
+        if (newAddr !== addr) return newAddr.trim();
+
+        newAddr = addr.replace(/[^縣市鄉鎮市區]+(?:路|街|大道|段)$/, '');
+        if (newAddr !== addr) return newAddr.trim();
+
+        return null;
+    }
+
     // 地址地理編碼定位邏輯
     async function handleGeocoding() {
         if (!locAddressInput || !btnGeocode) return;
@@ -2833,23 +2859,83 @@ function initLocationPositioning() {
         btnGeocode.disabled = true;
 
         try {
-            // 呼叫 OpenStreetMap 免費 Nominatim API 進行 Geocoding (在 URL 中帶入 email 作為識別，避免在 Header 中設定 Forbidden "User-Agent" 被瀏覽器阻擋)
-            const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}&email=disaster-prevention@local.org`;
-            const response = await fetch(url);
-            const data = await response.json();
+            let lat = null;
+            let lng = null;
+            let resolvedAddr = "";
+            let method = "";
 
-            if (data && data.length > 0) {
-                const result = data[0];
-                const lat = parseFloat(result.lat);
-                const lng = parseFloat(result.lon);
+            // 1. 優先透過後端 Cloud Functions 呼叫 TGOS API
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+                try {
+                    const idToken = await currentUser.getIdToken();
+                    const tgosUrl = `/api/geocode?address=${encodeURIComponent(address)}`;
+                    const tgosResponse = await fetch(tgosUrl, {
+                        headers: {
+                            'Authorization': `Bearer ${idToken}`
+                        }
+                    });
+                    if (tgosResponse.ok) {
+                         const tgosResult = await tgosResponse.json();
+                         if (tgosResult && tgosResult.success) {
+                             lat = tgosResult.lat;
+                             lng = tgosResult.lng;
+                             resolvedAddr = tgosResult.formattedAddress;
+                             method = "TGOS";
+                         }
+                    }
+                } catch (tgosErr) {
+                    console.warn("TGOS Geocoding failed, trying fallback...", tgosErr);
+                }
+            }
 
+            // 2. 若 TGOS 解析無果或未配置金鑰，Fallback 啟用「OSM 剝皮式自動裁剪模糊搜尋」
+            if (lat === null || lng === null) {
+                let currentSearchAddr = address;
+                let attempts = 0;
+                while (currentSearchAddr && attempts < 4) {
+                    attempts++;
+                    try {
+                        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(currentSearchAddr)}&email=disaster-prevention@local.org`;
+                        const response = await fetch(url);
+                        if (response.ok) {
+                            const results = await response.json();
+                            if (results && results.length > 0) {
+                                const result = results[0];
+                                lat = parseFloat(result.lat);
+                                lng = parseFloat(result.lon);
+                                resolvedAddr = currentSearchAddr;
+                                method = "OSM";
+                                break;
+                            }
+                        }
+                    } catch (osmErr) {
+                        console.warn(`OSM attempt ${attempts} failed:`, osmErr);
+                    }
+                    // 剝皮裁剪地址
+                    const peeled = peelAddress(currentSearchAddr);
+                    if (!peeled || peeled === currentSearchAddr) break;
+                    currentSearchAddr = peeled;
+                }
+            }
+
+            if (lat !== null && lng !== null) {
                 locLatInput.value = lat.toFixed(6);
                 locLngInput.value = lng.toFixed(6);
 
                 // 更新地圖
                 updateMap();
+
+                // 彈出友善的定位結果提示
+                if (method === "TGOS") {
+                    console.log(`TGOS 精準定位成功: ${resolvedAddr}`);
+                } else if (method === "OSM") {
+                    if (resolvedAddr !== address) {
+                        alert(`⚠️ 詳細門牌查無資料，系統已自動模糊定位至：\n『${resolvedAddr}』`);
+                    }
+                }
             } else {
-                alert("⚠️ 找不到該地址的座標，請確認輸入是否正確，或嘗試加上縣市名稱（例如：台東縣達仁鄉南興村）。");
+                alert("⚠️ 找不到該地址的座標，請確認行政區是否正確（南興村屬大武鄉而非達仁鄉），或嘗試僅輸入村里名稱。");
             }
         } catch (err) {
             console.error("Geocoding failed:", err);

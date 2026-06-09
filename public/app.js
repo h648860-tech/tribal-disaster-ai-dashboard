@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.18";
+const CURRENT_VERSION = "2.5.19";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -761,10 +761,10 @@ function initWarningSystem() {
             if (typeof stationPickerManager.open === 'function') {
                 const stations = cwaCachedRainStations.length > 0 ? cwaCachedRainStations : [
                     { id: "C0S990", name: "山豬窟", county: "臺東縣" },
-                    { id: "46762", name: "大武", county: "臺東縣" },
-                    { id: "C0S730", name: "達仁", county: "臺東縣" },
-                    { id: "C0S810", name: "安朔", county: "臺東縣" },
-                    { id: "C0S830", name: "森永", county: "臺東縣" }
+                    { id: "467540", name: "大武", county: "臺東縣" },
+                    { id: "C0S840", name: "南田", county: "臺東縣" },
+                    { id: "C0SA80", name: "土阪", county: "臺東縣" },
+                    { id: "C0SA90", name: "達仁林場", county: "臺東縣" }
                 ];
                 stationPickerManager.open('alert', savedAlertStation, "📡 選擇監控觀測站", stations, (finalVal) => {
                     savedAlertStation = finalVal;
@@ -2371,17 +2371,17 @@ function initTyphoonData() {
     // 本地預設防災測站 (無金鑰或離線時備援)
     const defaultRainStations = [
         { id: "C0S990", name: "山豬窟", county: "臺東縣" },
-        { id: "46762", name: "大武", county: "臺東縣" },
-        { id: "C0S730", name: "達仁", county: "臺東縣" },
-        { id: "C0S810", name: "安朔", county: "臺東縣" },
-        { id: "C0S830", name: "森永", county: "臺東縣" }
+        { id: "467540", name: "大武", county: "臺東縣" },
+        { id: "C0S840", name: "南田", county: "臺東縣" },
+        { id: "C0SA80", name: "土阪", county: "臺東縣" },
+        { id: "C0SA90", name: "達仁林場", county: "臺東縣" }
     ];
 
     const defaultWindStations = [
-        { id: "C0V250", name: "南田", county: "臺東縣" },
-        { id: "46762", name: "大武", county: "臺東縣" },
-        { id: "C0S830", name: "森永", county: "臺東縣" },
-        { id: "46757", name: "蘭嶼", county: "臺東縣" }
+        { id: "C0S840", name: "南田", county: "臺東縣" },
+        { id: "467540", name: "大武", county: "臺東縣" },
+        { id: "C0SA90", name: "達仁林場", county: "臺東縣" },
+        { id: "467620", name: "蘭嶼", county: "臺東縣" }
     ];
 
     let activePickerType = 'rain'; // 'rain' or 'wind'
@@ -2644,7 +2644,7 @@ function initTyphoonData() {
 
                 const s = windRes.records.Station.find(st => st.StationId === windId || st.StationName === windName);
                 if (s) {
-                    maxGustMps = findValByKey(s, "GustSpeed") || findValByKey(s, "WindSpeed") || 0;
+                    maxGustMps = findValByKey(s, "PeakGustSpeed") || findValByKey(s, "GustSpeed") || findValByKey(s, "WindSpeed") || 0;
                 }
             }
 

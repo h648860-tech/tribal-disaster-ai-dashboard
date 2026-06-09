@@ -345,7 +345,7 @@
                         </div>
                     </div>
                     <button class="btn btn-outline btn-sim" id="btnOpenTemplateModal" style="font-size: 0.7rem; padding: 0.25rem 0.5rem; border-color: var(--color-accent); color: var(--color-accent); margin-right: 0.75rem;">
-                        ✨ 自訂離線模板
+                        🛠️ 離線 SOP 資料庫
                     </button>
                     <span class="ai-badge" id="aiModeBadge">LOCAL MODEL</span>
                 </div>
@@ -378,8 +378,16 @@
                         </button>
                     </div>
 
+                    <!-- 快速呼叫離線 SOP 區域 -->
+                    <div class="sop-quick-call-area" style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <span style="font-size: 0.75rem; color: var(--color-cyan); font-weight: 600; white-space: nowrap;">🚨 快速呼叫離線 SOP：</span>
+                        <select id="sopQuickSelect" style="background: rgba(8, 9, 12, 0.8); border: 1px solid rgba(6, 182, 212, 0.3); color: #ffffff; font-size: 0.8rem; padding: 0.35rem 0.5rem; border-radius: 6px; cursor: pointer; outline: none; flex-grow: 1; min-width: 150px;">
+                            <option value="">-- 選擇已儲存之 SOP --</option>
+                        </select>
+                    </div>
+
                     <!-- Chat Input -->
-                    <div class="chat-input-area">
+                    <div class="chat-input-area" style="margin-top: 0.75rem;">
                         <input type="text" id="chatInput" placeholder="請輸入您的防災問題..." autocomplete="off">
                         <button id="btnSend" class="btn btn-accent">
                             送出
@@ -1028,40 +1036,40 @@
     <div class="modal" id="offlineTemplateModal">
         <div class="modal-content glass-bg-modal" style="max-width: 700px; width: 90vw;">
             <div class="modal-header">
-                <h2>✨ 自訂離線防災 AI 模板 (由 AI 協助建立)</h2>
+                <h2>🛠️ 自訂離線 SOP 資料庫管理</h2>
                 <button class="close-btn" id="btnCloseTemplateModal">&times;</button>
             </div>
             <div class="modal-body" style="padding: 1.5rem;">
                 <p style="font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 1rem; line-height: 1.4;">
-                    您可以在此透過 AI 助理生成自訂的防災模板與知識條目。生成並儲存後，即使在外部網路完全斷線的離線狀態下，AI 減災助理也能檢索並回答這些內容。
+                    您可以在此管理斷線時呼叫的 SOP 內容。您可以手動輸入，或在連網時透過 AI 助理生成對應的災害 SOP，儲存後即可在斷線時透過主畫面下拉選單一鍵快速呼叫。
                 </p>
                 
                 <div class="setting-item">
-                    <label for="templateKeyword">🔑 觸發關鍵字 (例如: 沙包, 避難所)：</label>
-                    <input type="text" id="templateKeyword" class="custom-input" placeholder="當問題中包含此字眼時將觸發回答..." style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                    <label for="templateKeyword">🔑 SOP 標題 / 觸發關鍵字 (例如: 土石流撤離 SOP)：</label>
+                    <input type="text" id="templateKeyword" class="custom-input" placeholder="輸入 SOP 名稱或關鍵字..." style="width: 100%; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
                 </div>
                 
                 <div class="setting-item" style="margin-top: 1rem;">
-                    <label for="templatePrompt">💡 AI 生成指令 (例如: 生成沙包正確堆疊法)：</label>
+                    <label for="templatePrompt">💡 AI 生成指令 (例如: 生成土石流避難所撤離步驟)：</label>
                     <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" id="templatePrompt" class="custom-input" placeholder="描述您希望 AI 產生的防災知識內容..." style="flex-grow: 1; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
+                        <input type="text" id="templatePrompt" class="custom-input" placeholder="描述您希望 AI 產生的 SOP 內容..." style="flex-grow: 1; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;">
                         <button class="btn btn-accent" id="btnGenerateTemplate" style="flex-shrink: 0; padding: 0 1rem; font-size: 0.85rem;">✨ AI 生成</button>
                     </div>
                 </div>
                 
                 <div class="setting-item" style="margin-top: 1rem;">
-                    <label for="templateContent">📝 知識庫內容 (Markdown 格式，可自由編輯)：</label>
-                    <textarea id="templateContent" class="custom-textarea" placeholder="AI 生成的內容會顯示在此處，您也可以手動修改..." style="width: 100%; min-height: 200px; font-size: 0.85rem; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;"></textarea>
+                    <label for="templateContent">📝 SOP 詳細內容 (Markdown 格式，可自由編輯)：</label>
+                    <textarea id="templateContent" class="custom-textarea" placeholder="AI 生成的 SOP 內容會顯示在此處，您也可以手動修改..." style="width: 100%; min-height: 200px; font-size: 0.85rem; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; padding: 0.65rem; border-radius: 6px;"></textarea>
                 </div>
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
-                    <button class="btn btn-outline" id="btnSaveTemplate" style="border-color: var(--color-success); color: var(--color-success); background: transparent;">💾 儲存至離線知識庫</button>
+                    <button class="btn btn-outline" id="btnSaveTemplate" style="border-color: var(--color-success); color: var(--color-success); background: transparent;">💾 儲存至本機離線資料庫</button>
                     <span id="templateStatus" style="font-size: 0.8rem; color: var(--color-cyan);"></span>
                 </div>
                 
                 <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem 0;">
                 
-                <h3 style="font-size: 1rem; font-weight: 600;">📋 已建立的自訂離線模板</h3>
+                <h3 style="font-size: 1rem; font-weight: 600;">📋 已儲存之離線 SOP 列表</h3>
                 <div id="customTemplateList" style="max-height: 150px; overflow-y: auto; margin-top: 0.5rem; background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
                     <!-- 列表動態渲染 -->
                 </div>
@@ -1069,6 +1077,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=2.5.9"></script>
+    <script src="app.js?v=2.5.10"></script>
 </body>
 </html>

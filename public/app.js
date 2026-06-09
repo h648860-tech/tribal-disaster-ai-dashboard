@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.9";
+const CURRENT_VERSION = "2.5.10";
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -499,6 +499,64 @@ function initOfflineAICopilot() {
             handleUserInput();
         });
     });
+
+    // 離線 SOP 快速呼叫下拉選單連動
+    const sopQuickSelect = document.getElementById('sopQuickSelect');
+    function updateSopQuickSelect() {
+        if (!sopQuickSelect) return;
+        
+        let customKB = {};
+        try {
+            const saved = localStorage.getItem('custom_knowledge_base');
+            if (saved) customKB = JSON.parse(saved);
+        } catch (e) {
+            console.error(e);
+        }
+        
+        const keys = Object.keys(customKB);
+        let optionsHtml = `<option value="">-- 選擇已儲存之 SOP --</option>`;
+        if (keys.length > 0) {
+            keys.forEach(k => {
+                optionsHtml += `<option value="${k}">🚨 SOP：${k}</option>`;
+            });
+        }
+        sopQuickSelect.innerHTML = optionsHtml;
+    }
+    
+    // 初始化呼叫
+    updateSopQuickSelect();
+    
+    // 導出至全域，供 SOP 編輯管理 Modal 儲存或刪除時呼叫更新
+    window.updateSopQuickSelect = updateSopQuickSelect;
+
+    if (sopQuickSelect) {
+        sopQuickSelect.addEventListener('change', () => {
+            const val = sopQuickSelect.value;
+            if (!val) return;
+            
+            let customKB = {};
+            try {
+                const saved = localStorage.getItem('custom_knowledge_base');
+                if (saved) customKB = JSON.parse(saved);
+            } catch (e) {
+                console.error(e);
+            }
+            
+            const content = customKB[val];
+            if (content) {
+                // 於 Chat 中模擬發送呼叫 SOP 訊息
+                appendMessage('指揮官', `快速呼叫：【${val}】`, true);
+                
+                // 模擬系統立即回覆該 SOP 內容
+                setTimeout(() => {
+                    appendMessage('AI 減災助理', content);
+                }, 300);
+            }
+            
+            // 重置選單
+            sopQuickSelect.value = "";
+        });
+    }
 }
 
 // 3. WARNING ALERT SYSTEM (Rainfall monitor & alert sync with sound)
@@ -2851,7 +2909,7 @@ function initOfflineTemplateSystem() {
 
             btnGenerateTemplate.disabled = true;
             btnGenerateTemplate.textContent = "⏳ 正在生成...";
-            if (templateStatus) templateStatus.textContent = "AI 正在撰寫防災手冊中...";
+            if (templateStatus) templateStatus.textContent = "AI 正在撰寫離線 SOP 中...";
 
             try {
                 const url = `/api/askGemini`;
@@ -2933,11 +2991,16 @@ function initOfflineTemplateSystem() {
             customKB[key] = content;
             localStorage.setItem('custom_knowledge_base', JSON.stringify(customKB));
 
-            if (templateStatus) templateStatus.textContent = `✅ 儲存成功！關鍵字「${key}」已建立。`;
+            if (templateStatus) templateStatus.textContent = `✅ 儲存成功！離線 SOP「${key}」已建立。`;
             templateKeyword.value = "";
             templatePrompt.value = "";
             templateContent.value = "";
             renderCustomTemplateList();
+
+            // 連動更新首頁的 SOP 下拉選單
+            if (typeof window.updateSopQuickSelect === 'function') {
+                window.updateSopQuickSelect();
+            }
         });
     }
 
@@ -2955,7 +3018,7 @@ function initOfflineTemplateSystem() {
 
         const keys = Object.keys(customKB);
         if (keys.length === 0) {
-            customTemplateList.innerHTML = `<div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1rem;">目前無任何自訂離線模板。</div>`;
+            customTemplateList.innerHTML = `<div style="text-align: center; color: var(--color-text-muted); font-size: 0.75rem; padding: 1rem;">目前無任何自訂離線 SOP。</div>`;
             return;
         }
 
@@ -2971,7 +3034,7 @@ function initOfflineTemplateSystem() {
 
     // 綁定全域刪除函式供 onclick 調用
     window.deleteCustomTemplate = function(key) {
-        if (!confirm(`確定要刪除「${key}」這個自訂離線模板嗎？`)) return;
+        if (!confirm(`確定要刪除「${key}」這個自訂離線 SOP 嗎？`)) return;
         
         let customKB = {};
         try {
@@ -2984,6 +3047,11 @@ function initOfflineTemplateSystem() {
         delete customKB[key];
         localStorage.setItem('custom_knowledge_base', JSON.stringify(customKB));
         renderCustomTemplateList();
+
+        // 連動更新首頁的 SOP 下拉選單
+        if (typeof window.updateSopQuickSelect === 'function') {
+            window.updateSopQuickSelect();
+        }
     };
 }
 

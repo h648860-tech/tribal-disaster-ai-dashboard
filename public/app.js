@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.10";
+const CURRENT_VERSION = "2.5.11";
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -288,7 +288,7 @@ function initOfflineAICopilot() {
     const chatContainer = document.getElementById('chatContainer');
     const chatInput = document.getElementById('chatInput');
     const btnSend = document.getElementById('btnSend');
-    const suggestions = document.querySelectorAll('.suggest-btn');
+    const btnVoiceInput = document.getElementById('btnVoiceInput');
 
     // Update active badge status at startup
     updateNetworkStatus();
@@ -491,14 +491,70 @@ function initOfflineAICopilot() {
         if (e.key === 'Enter') handleUserInput();
     });
 
-    // Wire up suggestion buttons
-    suggestions.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const question = btn.getAttribute('data-question');
-            chatInput.value = question;
-            handleUserInput();
-        });
-    });
+    // Web Speech API 語音輸入聽寫
+    let recognition = null;
+    let isRecording = false;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = 'zh-TW';
+        recognition.interimResults = false;
+
+        recognition.onstart = () => {
+            isRecording = true;
+            if (btnVoiceInput) {
+                btnVoiceInput.classList.add('btn-voice-active');
+                btnVoiceInput.innerHTML = "🛑";
+                chatInput.placeholder = "聆聽中，請開始說話...";
+            }
+        };
+
+        recognition.onend = () => {
+            isRecording = false;
+            if (btnVoiceInput) {
+                btnVoiceInput.classList.remove('btn-voice-active');
+                btnVoiceInput.innerHTML = "🎙️";
+                chatInput.placeholder = "請輸入您的防災問題...";
+            }
+        };
+
+        recognition.onresult = (event) => {
+            const resultText = event.results[0][0].transcript;
+            if (resultText && chatInput) {
+                chatInput.value = resultText;
+                handleUserInput(); // 聽寫完成直接發送
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error:", event.error);
+            if (event.error === 'not-allowed') {
+                alert("⚠️ 語音輸入失敗：麥克風存取權限被拒絕。請於瀏覽器設定中允許麥克風權限。");
+            } else if (event.error === 'no-speech') {
+                // quiet ignore
+            } else {
+                alert(`⚠️ 語音聽寫出錯：${event.error}`);
+            }
+        };
+
+        if (btnVoiceInput) {
+            btnVoiceInput.addEventListener('click', () => {
+                if (isRecording) {
+                    recognition.stop();
+                } else {
+                    recognition.start();
+                }
+            });
+        }
+    } else {
+        if (btnVoiceInput) {
+            btnVoiceInput.addEventListener('click', () => {
+                alert("⚠️ 您的瀏覽器不支援內建語音辨識 (Web Speech API)，請改用 Chrome 或 Safari。");
+            });
+        }
+    }
 
     // 離線 SOP 快速呼叫下拉選單連動
     const sopQuickSelect = document.getElementById('sopQuickSelect');

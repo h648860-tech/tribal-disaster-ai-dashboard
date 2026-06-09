@@ -2807,6 +2807,24 @@ body.modal-open {
     }
 }
 
+/* Voice Input Active State */
+.btn-voice-active {
+    background: rgba(230, 57, 70, 0.2) !important;
+    border-color: var(--color-danger) !important;
+    color: var(--color-danger) !important;
+    animation: voice-pulse 1.5s infinite alternate;
+}
+
+@keyframes voice-pulse {
+    0% {
+        box-shadow: 0 0 4px rgba(230, 57, 70, 0.4);
+    }
+    100% {
+        box-shadow: 0 0 12px rgba(230, 57, 70, 0.8);
+    }
+}
+
+
 
 
 

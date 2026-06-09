@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.11";
+const CURRENT_VERSION = "2.5.12";
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -1063,7 +1063,7 @@ function updateWarningLevel(rain, rain1h) {
         // Red alert
         warningBanner.classList.add('status-danger');
         warningLevelTitle.textContent = "🔴 紅色警戒";
-        warningLevelDesc.textContent = "告警：累積降雨量已達紅色警戒 (>= 450mm)，請即刻執行預防性撤離！";
+        warningLevelDesc.textContent = "告警：累積降雨量已達紅色警戒 (>= 450mm)，建議執行預防性撤離！";
         if (warningHeaderIcon) warningHeaderIcon.style.color = "var(--color-danger)";
         
         // Header Sync

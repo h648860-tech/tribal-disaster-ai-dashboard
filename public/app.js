@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.15";
+const CURRENT_VERSION = "2.5.16";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -27,6 +27,10 @@ function maskAddress(addr) {
     return masked;
 }
 
+
+// 全台測站動態快取
+let cwaCachedRainStations = [];
+let cwaCachedWindStations = [];
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -2376,10 +2380,18 @@ function initTyphoonData() {
     const lineSummaryText = document.getElementById('lineSummaryText');
     const btnCopyLineText = document.getElementById('btnCopyLineText');
     
-    const rainSelect = document.getElementById('typhoonRainStationSelect');
-    const windSelect = document.getElementById('typhoonWindStationSelect');
-    const customRainInput = document.getElementById('customTyphoonRainStation');
-    const customWindInput = document.getElementById('customTyphoonWindStation');
+    const btnSelectRainStation = document.getElementById('btnSelectRainStation');
+    const btnSelectWindStation = document.getElementById('btnSelectWindStation');
+
+    const stationPickerModal = document.getElementById('stationPickerModal');
+    const stationPickerTitle = document.getElementById('stationPickerTitle');
+    const pickerCountySelect = document.getElementById('pickerCountySelect');
+    const pickerStationSelect = document.getElementById('pickerStationSelect');
+    const pickerCustomStationContainer = document.getElementById('pickerCustomStationContainer');
+    const pickerCustomStationInput = document.getElementById('pickerCustomStationInput');
+    const btnCancelPicker = document.getElementById('btnCancelPicker');
+    const btnConfirmPicker = document.getElementById('btnConfirmPicker');
+    const btnClosePickerModal = document.getElementById('btnClosePickerModal');
 
     if (!btnTyphoonData || !typhoonModal) return;
 
@@ -2390,95 +2402,142 @@ function initTyphoonData() {
         localStorage.setItem('typhoonRainStation', savedRainStation);
     }
     let savedWindStation = localStorage.getItem('typhoonWindStation') || "C0V250|南田";
-    
-    function initStationUI(selectEl, customInputEl, savedVal) {
-        if (!selectEl) return;
-        let isDefault = false;
-        for (let i = 0; i < selectEl.options.length; i++) {
-            if (selectEl.options[i].value === savedVal) {
-                isDefault = true;
-                break;
+
+    // 本地預設防災測站 (無金鑰或離線時備援)
+    const defaultRainStations = [
+        { id: "C0S990", name: "山豬窟", county: "臺東縣" },
+        { id: "46762", name: "大武", county: "臺東縣" },
+        { id: "C0S730", name: "達仁", county: "臺東縣" },
+        { id: "C0S810", name: "安朔", county: "臺東縣" },
+        { id: "C0S830", name: "森永", county: "臺東縣" }
+    ];
+
+    const defaultWindStations = [
+        { id: "C0V250", name: "南田", county: "臺東縣" },
+        { id: "46762", name: "大武", county: "臺東縣" },
+        { id: "C0S830", name: "森永", county: "臺東縣" },
+        { id: "46757", name: "蘭嶼", county: "臺東縣" }
+    ];
+
+    let activePickerType = 'rain'; // 'rain' or 'wind'
+
+    function updateStationButtonsText() {
+        const [_, rainName] = savedRainStation.split('|');
+        const [__, windName] = savedWindStation.split('|');
+        if (btnSelectRainStation) btnSelectRainStation.textContent = `${rainName} (${savedRainStation.split('|')[0]})`;
+        if (btnSelectWindStation) btnSelectWindStation.textContent = `${windName} (${savedWindStation.split('|')[0]})`;
+    }
+    updateStationButtonsText();
+
+    function initStationPickerModal() {
+        if (!stationPickerModal) return;
+
+        function openPicker(type) {
+            activePickerType = type;
+            stationPickerModal.classList.add('active');
+
+            let stations = [];
+            let currentVal = "";
+            if (type === 'rain') {
+                stationPickerTitle.textContent = "🌧️ 選擇雨量觀測站";
+                stations = cwaCachedRainStations.length > 0 ? cwaCachedRainStations : defaultRainStations;
+                currentVal = savedRainStation;
+            } else {
+                stationPickerTitle.textContent = "💨 選擇風速觀測站";
+                stations = cwaCachedWindStations.length > 0 ? cwaCachedWindStations : defaultWindStations;
+                currentVal = savedWindStation;
+            }
+
+            const [currentId, currentName] = currentVal.split('|');
+
+            // 1. 提取所有縣市並渲染
+            const countiesSet = new Set();
+            stations.forEach(s => {
+                if (s.county) countiesSet.add(s.county);
+            });
+            const counties = Array.from(countiesSet).sort();
+
+            pickerCountySelect.innerHTML = counties.map(c => `<option value="${c}">${c}</option>`).join('');
+            pickerCountySelect.innerHTML += `<option value="custom">-- 自訂觀測站 --</option>`;
+
+            // 2. 縣市變更時，聯動更新觀測站
+            function populateStations(selectedCounty) {
+                if (selectedCounty === 'custom') {
+                    pickerStationSelect.style.display = 'none';
+                    pickerCustomStationContainer.style.display = 'block';
+                    pickerCustomStationInput.value = currentVal.includes('|') ? currentVal : "";
+                } else {
+                    pickerStationSelect.style.display = 'block';
+                    pickerCustomStationContainer.style.display = 'none';
+                    
+                    const filteredStations = stations.filter(s => s.county === selectedCounty);
+                    pickerStationSelect.innerHTML = filteredStations.map(s => 
+                        `<option value="${s.id}|${s.name}">${s.name} (${s.id})</option>`
+                    ).join('');
+                }
+            }
+
+            pickerCountySelect.onchange = () => {
+                populateStations(pickerCountySelect.value);
+            };
+
+            // 3. 預設選取當前測站
+            let matchedStation = stations.find(s => s.id === currentId);
+            if (matchedStation) {
+                pickerCountySelect.value = matchedStation.county;
+                populateStations(matchedStation.county);
+                pickerStationSelect.value = `${currentId}|${currentName}`;
+            } else {
+                pickerCountySelect.value = 'custom';
+                populateStations('custom');
             }
         }
-        
-        if (isDefault) {
-            selectEl.value = savedVal;
-            if (customInputEl) customInputEl.classList.add('hidden');
-        } else {
-            selectEl.value = 'custom';
-            if (customInputEl) {
-                customInputEl.classList.remove('hidden');
-                customInputEl.value = savedVal;
-            }
+
+        if (btnSelectRainStation) btnSelectRainStation.addEventListener('click', () => openPicker('rain'));
+        if (btnSelectWindStation) btnSelectWindStation.addEventListener('click', () => openPicker('wind'));
+
+        function closePicker() {
+            stationPickerModal.classList.remove('active');
+        }
+
+        if (btnCancelPicker) btnCancelPicker.addEventListener('click', closePicker);
+        if (btnClosePickerModal) btnClosePickerModal.addEventListener('click', closePicker);
+        if (btnConfirmPicker) {
+            btnConfirmPicker.addEventListener('click', () => {
+                let finalVal = "";
+                const isCustom = pickerCountySelect.value === 'custom';
+
+                if (isCustom) {
+                    const customInput = pickerCustomStationInput.value.trim();
+                    if (customInput && customInput.includes('|')) {
+                        finalVal = customInput;
+                    } else {
+                        alert("自訂觀測站格式不正確 (格式: 代碼|名稱)");
+                        return;
+                    }
+                } else {
+                    finalVal = pickerStationSelect.value;
+                }
+
+                if (activePickerType === 'rain') {
+                    savedRainStation = finalVal;
+                    localStorage.setItem('typhoonRainStation', finalVal);
+                } else {
+                    savedWindStation = finalVal;
+                    localStorage.setItem('typhoonWindStation', finalVal);
+                }
+
+                updateStationButtonsText();
+                closePicker();
+                fetchTyphoonData();
+            });
         }
     }
-    
-    initStationUI(rainSelect, customRainInput, savedRainStation);
-    initStationUI(windSelect, customWindInput, savedWindStation);
-    
-    if (rainSelect) {
-        rainSelect.addEventListener('change', () => {
-            if (rainSelect.value === 'custom') {
-                customRainInput.classList.remove('hidden');
-                customRainInput.value = "";
-                customRainInput.focus();
-            } else {
-                customRainInput.classList.add('hidden');
-                customRainInput.value = "";
-                localStorage.setItem('typhoonRainStation', rainSelect.value);
-            }
-        });
-    }
-    
-    if (windSelect) {
-        windSelect.addEventListener('change', () => {
-            if (windSelect.value === 'custom') {
-                customWindInput.classList.remove('hidden');
-                customWindInput.value = "";
-                customWindInput.focus();
-            } else {
-                customWindInput.classList.add('hidden');
-                customWindInput.value = "";
-                localStorage.setItem('typhoonWindStation', windSelect.value);
-            }
-        });
-    }
+    initStationPickerModal();
 
     function getSelectedStations() {
-        let rainVal = rainSelect.value;
-        let windVal = windSelect.value;
-        
-        if (rainVal === 'custom') {
-            const customVal = customRainInput.value.trim();
-            if (customVal && customVal.includes('|')) {
-                rainVal = customVal;
-                localStorage.setItem('typhoonRainStation', customVal);
-            } else {
-                alert("自訂雨量測站格式不正確 (格式：代碼|名稱)，將使用預設山豬窟測站。");
-                rainSelect.value = "C0S990|山豬窟";
-                customRainInput.classList.add('hidden');
-                rainVal = "C0S990|山豬窟";
-                localStorage.setItem('typhoonRainStation', rainVal);
-            }
-        }
-        
-        if (windVal === 'custom') {
-            const customVal = customWindInput.value.trim();
-            if (customVal && customVal.includes('|')) {
-                windVal = customVal;
-                localStorage.setItem('typhoonWindStation', customVal);
-            } else {
-                alert("自訂風速測站格式不正確 (格式：代碼|名稱)，將使用預設南田測站。");
-                windSelect.value = "C0V250|南田";
-                customWindInput.classList.add('hidden');
-                windVal = "C0V250|南田";
-                localStorage.setItem('typhoonWindStation', windVal);
-            }
-        }
-        
-        const [rainId, rainName] = rainVal.split('|');
-        const [windId, windName] = windVal.split('|');
-        
+        const [rainId, rainName] = savedRainStation.split('|');
+        const [windId, windName] = savedWindStation.split('|');
         return { rainId, rainName, windId, windName };
     }
 
@@ -2562,10 +2621,20 @@ function initTyphoonData() {
                 fetch(warningUrl).then(r => r.json()).catch(e => ({ error: true, msg: e.message }))
             ]);
 
-            // 1. Process Rain Data
+            // 1. Process Rain Data & Cache all stations
             let rain24h = null;
             let rain1h = null;
             if (rainRes && rainRes.records && rainRes.records.Station) {
+                // 快取最新的雨量測站，並依縣市分組所需資料格式
+                cwaCachedRainStations = rainRes.records.Station.map(s => {
+                    const county = (s.GeoInfo && s.GeoInfo.CountyName) ? s.GeoInfo.CountyName : "其他";
+                    return {
+                        id: s.StationId,
+                        name: s.StationName,
+                        county: county
+                    };
+                }).filter(s => s.id && s.name);
+
                 const s = rainRes.records.Station.find(st => st.StationId === rainId || st.StationName === rainName);
                 if (s) {
                     const past24 = s.RainfallElement && (s.RainfallElement.Past24hr || s.RainfallElement.Past24Hr);
@@ -2586,9 +2655,19 @@ function initTyphoonData() {
                 }
             }
 
-            // 2. Process Wind Data
+            // 2. Process Wind Data & Cache all stations
             let maxGustMps = null;
             if (windRes && windRes.records && windRes.records.Station) {
+                // 快取最新的風速測站，並依縣市分組所需資料格式
+                cwaCachedWindStations = windRes.records.Station.map(s => {
+                    const county = (s.GeoInfo && s.GeoInfo.CountyName) ? s.GeoInfo.CountyName : "其他";
+                    return {
+                        id: s.StationId,
+                        name: s.StationName,
+                        county: county
+                    };
+                }).filter(s => s.id && s.name);
+
                 const s = windRes.records.Station.find(st => st.StationId === windId || st.StationName === windName);
                 if (s) {
                     maxGustMps = findValByKey(s, "GustSpeed") || findValByKey(s, "WindSpeed") || 0;

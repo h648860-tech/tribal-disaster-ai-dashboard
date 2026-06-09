@@ -550,29 +550,18 @@
             </div>
             <div class="modal-body" style="padding: 1.5rem;">
                 <!-- 測站選擇器 -->
-                <div class="station-selectors" style="margin-bottom: 1.25rem; background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;">
-                    <div class="setting-item" style="margin-bottom: 0;">
-                        <label for="typhoonRainStationSelect" style="display:block; font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.25rem;">🌧️ 雨量觀測站選擇：</label>
-                        <select id="typhoonRainStationSelect" class="custom-input" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px;">
-                            <option value="C0S990|山豬窟">山豬窟 (C0S990)</option>
-                            <option value="46762|大武">大武 (46762)</option>
-                            <option value="C0S730|達仁">達仁 (C0S730)</option>
-                            <option value="C0S810|安朔">安朔 (C0S810)</option>
-                            <option value="C0S830|森永">森永 (C0S830)</option>
-                            <option value="custom">-- 自訂觀測站 --</option>
-                        </select>
-                        <input type="text" id="customTyphoonRainStation" class="custom-input hidden" placeholder="格式: ID|名稱 (如 C0AC40|山豬窟)" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px; margin-top:0.4rem; font-size:0.8rem;">
+                <div class="station-selectors" style="margin-bottom: 1.25rem; background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between; flex-shrink: 0;">
+                    <div style="flex: 1; min-width: 250px; display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 0.8rem; color: var(--color-text-muted); white-space: nowrap;">🌧️ 雨量觀測站：</span>
+                        <button id="btnSelectRainStation" class="btn btn-outline" style="flex-grow: 1; text-align: left; padding: 0.5rem 0.75rem; font-size: 0.8rem; background: rgba(8, 9, 12, 0.6); border-color: rgba(6, 182, 212, 0.3); color: #ffffff;">
+                            山豬窟 (C0S990)
+                        </button>
                     </div>
-                    <div class="setting-item" style="margin-bottom: 0;">
-                        <label for="typhoonWindStationSelect" style="display:block; font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.25rem;">💨 風速觀測站選擇：</label>
-                        <select id="typhoonWindStationSelect" class="custom-input" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px;">
-                            <option value="C0V250|南田">南田 (C0V250)</option>
-                            <option value="46762|大武">大武 (46762)</option>
-                            <option value="C0S830|森永">森永 (C0S830)</option>
-                            <option value="46757|蘭嶼">蘭嶼 (46757)</option>
-                            <option value="custom">-- 自訂觀測站 --</option>
-                        </select>
-                        <input type="text" id="customTyphoonWindStation" class="custom-input hidden" placeholder="格式: ID|名稱 (如 C0V250|南田)" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.5rem; border-radius:6px; margin-top:0.4rem; font-size:0.8rem;">
+                    <div style="flex: 1; min-width: 250px; display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 0.8rem; color: var(--color-text-muted); white-space: nowrap;">💨 風速觀測站：</span>
+                        <button id="btnSelectWindStation" class="btn btn-outline" style="flex-grow: 1; text-align: left; padding: 0.5rem 0.75rem; font-size: 0.8rem; background: rgba(8, 9, 12, 0.6); border-color: rgba(6, 182, 212, 0.3); color: #ffffff;">
+                            南田 (C0V250)
+                        </button>
                     </div>
                 </div>
 
@@ -1072,6 +1061,40 @@
         </div>
     </div>
 
-    <script src="app.js?v=2.5.15"></script>
+    <!-- STATION PICKER MODAL (RAIN & WIND SELECTOR) -->
+    <div class="modal" id="stationPickerModal" style="z-index: 2000;">
+        <div class="modal-content glass-bg-modal" style="max-width: 450px; width: 90vw;">
+            <div class="modal-header">
+                <h3 id="stationPickerTitle">📡 選擇觀測站</h3>
+                <button class="close-btn" id="btnClosePickerModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div class="setting-item" style="margin-bottom: 1.25rem;">
+                    <label for="pickerCountySelect" style="display:block; font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.25rem;">選擇縣市：</label>
+                    <select id="pickerCountySelect" class="custom-input" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.6rem; border-radius:6px;">
+                        <!-- 縣市選項 -->
+                    </select>
+                </div>
+                <div class="setting-item" style="margin-bottom: 1.5rem;">
+                    <label for="pickerStationSelect" style="display:block; font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.25rem;">選擇觀測站：</label>
+                    <select id="pickerStationSelect" class="custom-input" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.6rem; border-radius:6px;">
+                        <!-- 測站選項 -->
+                    </select>
+                </div>
+                
+                <div class="setting-item" id="pickerCustomStationContainer" style="margin-bottom: 1.5rem; display: none;">
+                    <label for="pickerCustomStationInput" style="display:block; font-size:0.8rem; color:var(--color-text-muted); margin-bottom:0.25rem;">輸入自訂觀測站 (格式: 代碼|名稱)：</label>
+                    <input type="text" id="pickerCustomStationInput" class="custom-input" placeholder="如 C0S990|山豬窟" style="width:100%; background:#08090c; border:1px solid rgba(255,255,255,0.1); color:#ffffff; padding:0.6rem; border-radius:6px;">
+                </div>
+
+                <div style="display: flex; gap: 0.75rem;">
+                    <button class="btn btn-outline" id="btnCancelPicker" style="flex: 1;">取消</button>
+                    <button class="btn btn-accent" id="btnConfirmPicker" style="flex: 1;">確認選擇</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=2.5.16"></script>
 </body>
 </html>

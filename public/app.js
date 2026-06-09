@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.19";
+const CURRENT_VERSION = "2.5.20";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -275,7 +275,7 @@ function updateNetworkStatus() {
             aiSystemInstruction.textContent = "系統指示：當前已進入「離線模式」，AI 已切換至本地資料庫，可調用資料庫內預設資料解答問題。";
         }
         if (aiWelcomeMessage) {
-            aiWelcomeMessage.textContent = "您好，我是部落防災 AI 協助系統的智慧助理。目前外部網路已中斷，但我擁有完整的本地防災知識庫、緊急救護指南以及族語廣播生成工具。請隨時向我提問或點選下方快捷問題";
+            aiWelcomeMessage.textContent = "您好，我是凱芳防災協助系統的智慧助理。目前外部網路已中斷，但我擁有完整的本地防災知識庫、緊急救護指南以及族語廣播生成工具。請隨時向我提問或點選下方快捷問題";
         }
     }
 }
@@ -366,7 +366,7 @@ function initOfflineAICopilot() {
         if (isOnline) {
             // Cloud Gemini API Mode (透過 Cloud Function 代理)
             const url = `/api/askGemini`;
-            const systemInstructionText = "你目前扮演的是部落防災協助系統的 AI 減災助理。你精通部落（特別是台東南興村）的防災、減災與緊急撤離引導。你的回答必須使用繁體中文、簡潔、具行動導向，並適時格式化為容易閱讀的 Markdown。若用戶詢問南興村國語廣播詞，請提供貼近在地且口吻專業的廣播詞對照。";
+            const systemInstructionText = "你目前扮演的是凱芳防災協助系統的 AI 減災助理。你精通大武鄉、達仁鄉（特別是台東南興村）的防災、減災與緊急撤離引導。你的回答必須使用繁體中文、簡潔、具行動導向，並適時格式化為容易閱讀的 Markdown。若用戶詢問南興村國語廣播詞，請提供貼近在地且口吻專業的廣播詞對照。";
             
             (async () => {
                 try {

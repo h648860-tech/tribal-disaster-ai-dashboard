@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.13";
+const CURRENT_VERSION = "2.5.14";
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {
@@ -3372,6 +3372,31 @@ function initResidentsDatabase() {
             });
     }
     
+    // 去識別化工具函式
+    function maskName(name) {
+        if (!name) return "";
+        const len = name.length;
+        if (len <= 2) return name.charAt(0) + "*";
+        if (len === 3) return name.charAt(0) + "*" + name.charAt(2);
+        return name.charAt(0) + "*".repeat(len - 2) + name.charAt(len - 1);
+    }
+
+    function maskPhone(phone) {
+        if (!phone) return "";
+        const clean = phone.replace(/[-\s]/g, '');
+        if (clean.length >= 9) {
+            return phone.substring(0, 4) + "****" + phone.substring(8);
+        }
+        return phone.replace(/.(?=.{2})/g, '*');
+    }
+
+    function maskAddress(addr) {
+        if (!addr) return "";
+        let masked = addr.replace(/(?:[0-9]+|[一二三四五六七八九十]+)鄰/g, '*鄰');
+        masked = masked.replace(/(?:[0-9]+(?:之[0-9]+)?|[一二三四五六七八九十百]+(?:之[一二三四五六七八九十百]+)?)號/g, '**號');
+        return masked;
+    }
+
     // Render Table
     function renderResidentsTable() {
         const query = residentsSearch.value.trim().toLowerCase();
@@ -3396,17 +3421,17 @@ function initResidentsDatabase() {
                 relationText = '<span class="sensor-badge" style="background: rgba(6,182,212,0.15); color: var(--color-cyan);">🏠 戶長 (自立)</span>';
             } else {
                 const head = localResidentsData.find(h => h.id === r.householdId);
-                const headName = head ? head.name : "未知戶長";
+                const headName = head ? maskName(head.name) : "未知戶長";
                 relationText = `<span class="sensor-badge" style="background: rgba(255,255,255,0.06); color: var(--color-text-muted);">👪 家人 (戶長: ${headName})</span>`;
             }
             
             return `
                 <tr>
-                    <td style="font-weight: 700;">${r.name || ""}</td>
+                    <td style="font-weight: 700;">${maskName(r.name || "")}</td>
                     <td>${r.gender === 'male' ? '男' : r.gender === 'female' ? '女' : '其他'}</td>
                     <td style="font-family: monospace;">${r.age ?? ""} 歲</td>
-                    <td style="font-family: monospace;">${r.phone || ""}</td>
-                    <td style="font-size: 0.8rem; color: var(--color-text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${r.address || ""}</td>
+                    <td style="font-family: monospace;">${maskPhone(r.phone || "")}</td>
+                    <td style="font-size: 0.8rem; color: var(--color-text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${maskAddress(r.address || "")}</td>
                     <td>${relationText}</td>
                     <td>
                         <div style="display: flex; gap: 0.4rem;">
@@ -3769,7 +3794,7 @@ function initSheltersDatabase() {
                 let headName = "自己";
                 if (r.relation === 'member') {
                     const headDoc = localResidentsData.find(h => h.id === r.householdId);
-                    headName = headDoc ? headDoc.name : "未知戶長";
+                    headName = headDoc ? maskName(headDoc.name) : "未知戶長";
                 }
                 
                 // Render evac status text
@@ -3787,8 +3812,8 @@ function initSheltersDatabase() {
                 return `
                     <tr>
                         <td><input type="checkbox" class="chk-evac-row" value="${r.id}"></td>
-                        <td style="font-weight: 700;">${r.name}</td>
-                        <td style="font-size: 0.75rem; color: var(--color-text-muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${r.address || ""}</td>
+                        <td style="font-weight: 700;">${maskName(r.name)}</td>
+                        <td style="font-size: 0.75rem; color: var(--color-text-muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${maskAddress(r.address || "")}</td>
                         <td style="font-size: 0.8rem;">${headName}</td>
                         <td>${statusBadge}</td>
                     </tr>

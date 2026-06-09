@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.6";
+const CURRENT_VERSION = "2.5.7";
 
 // 清理 URL 中的版本參數並重置防重載鎖
 try {

@@ -185,8 +185,8 @@ exports.onUserApprovedSendEmail = functions.firestore
         const beforeData = change.before.data();
         const afterData = change.after.data();
 
-        // 偵測是否從未通過變更為通過
-        if (!beforeData.approved && afterData.approved) {
+        // 偵測是否從未通過變更為通過 (由 status 不是 approved 變為 approved)
+        if (beforeData.status !== 'approved' && afterData.status === 'approved') {
             const userEmail = afterData.email;
             const userName = afterData.username || '防災人員';
 

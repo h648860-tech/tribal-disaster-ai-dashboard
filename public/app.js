@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.25";
+const CURRENT_VERSION = "2.5.26";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -2830,7 +2830,8 @@ function initTyphoonData() {
         const summary = compileLineSummary(rain1h, rain24h, gust, warning, false, rainName, windName);
         lineSummaryText.value = summary;
 
-        triggerAICopilotBroadcast(summary);
+        // 移除在 AI 減災助理聊天對話框中顯示防汛通報氣泡
+        // triggerAICopilotBroadcast(summary);
     }
 
     // Render Simulated Data
@@ -2865,7 +2866,8 @@ function initTyphoonData() {
         const summary = compileLineSummary(simRain1h, simRain, simGust, simWarning, true, rainName, windName);
         lineSummaryText.value = summary;
 
-        triggerAICopilotBroadcast(summary);
+        // 移除在 AI 減災助理聊天對話框中顯示防汛通報氣泡
+        // triggerAICopilotBroadcast(summary);
     }
 
     // Format the text specifically for LINE transmission

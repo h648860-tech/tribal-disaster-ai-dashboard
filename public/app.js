@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.23";
+const CURRENT_VERSION = "2.5.24";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -1675,12 +1675,14 @@ function initAuthSystem() {
                 btnAdminPortal.style.display = 'none';
             }
 
-            // 載入全域 API 金鑰
-            const keysDoc = await db.collection('settings').doc('keys').get();
-            if (keysDoc.exists) {
-                globalApiKeys.cwaApiKey = keysDoc.data().cwaApiKey || "";
-                // 方案 A：金鑰收回至後端 Cloud Functions，前端不再下載與保存明文金鑰
-                globalApiKeys.geminiApiKey = ""; 
+            // 載入全域 API 金鑰 (改為讀取公開且受安全規則保護之 settings/cwa，杜絕一般用戶取得敏感金鑰)
+            try {
+                const cwaDoc = await db.collection('settings').doc('cwa').get();
+                if (cwaDoc.exists) {
+                    globalApiKeys.cwaApiKey = cwaDoc.data().cwaApiKey || "";
+                }
+            } catch (err) {
+                console.warn("載入公開 CWA 金鑰失敗 (可能未設定):", err);
             }
             
             // 更新 Windy 地圖的預設按鈕與定位
@@ -1990,18 +1992,26 @@ function initAuthSystem() {
         });
     }
 
-    // 7. 管理者金鑰存取與寫入
+    // 7. 管理者金鑰存取與寫入 (實作公開與敏感金鑰隔離)
     function loadApiKeysToAdminInputs() {
+        db.collection('settings').doc('cwa').get().then(cwaDoc => {
+            if (cwaDoc.exists) {
+                cwaApiKeyInput.value = cwaDoc.data().cwaApiKey || "";
+            }
+        }).catch(err => console.error("後台載入公開金鑰錯誤:", err));
+
         db.collection('settings').doc('keys').get().then(doc => {
             if (doc.exists) {
-                cwaApiKeyInput.value = doc.data().cwaApiKey || "";
+                if (!cwaApiKeyInput.value) {
+                    cwaApiKeyInput.value = doc.data().cwaApiKey || "";
+                }
                 geminiApiKeyInput.value = doc.data().geminiApiKey || "";
                 if (tgosAppIdInput) tgosAppIdInput.value = doc.data().tgosAppId || "";
                 if (tgosApiKeyInput) tgosApiKeyInput.value = doc.data().tgosApiKey || "";
                 if (smtpEmailInput) smtpEmailInput.value = doc.data().smtpEmail || "";
                 if (smtpPasswordInput) smtpPasswordInput.value = doc.data().smtpPassword || "";
             }
-        }).catch(err => console.error("後台載入金鑰錯誤:", err));
+        }).catch(err => console.error("後台載入敏感金鑰錯誤:", err));
     }
 
     if (btnSaveSettings) {
@@ -2017,6 +2027,10 @@ function initAuthSystem() {
             btnSaveSettings.textContent = "⏳ 正在儲存金鑰...";
 
             try {
+                // 分開儲存：cwaApiKey 寫入公開 settings/cwa，其餘敏感金鑰寫入限 admin 存取之 settings/keys
+                await db.collection('settings').doc('cwa').set({
+                    cwaApiKey: cwaKey
+                });
                 await db.collection('settings').doc('keys').set({
                     cwaApiKey: cwaKey,
                     geminiApiKey: geminiKey,

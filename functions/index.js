@@ -1,6 +1,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const fetch = require('node-fetch');
+const nodemailer = require('nodemailer');
 
 admin.initializeApp();
 
@@ -176,4 +177,91 @@ exports.geocode = functions.https.onRequest(async (req, res) => {
         return res.status(200).json({ success: false, reason: 'Failed to communicate with TGOS API' });
     }
 });
+
+
+exports.onUserApprovedSendEmail = functions.firestore
+    .document('users/{uid}')
+    .onUpdate(async (change, context) => {
+        const beforeData = change.before.data();
+        const afterData = change.after.data();
+
+        // 偵測是否從未通過變更為通過
+        if (!beforeData.approved && afterData.approved) {
+            const userEmail = afterData.email;
+            const userName = afterData.username || '防災人員';
+
+            if (!userEmail) {
+                console.warn(`User ${context.params.uid} has no email configured. Skip sending email.`);
+                return null;
+            }
+
+            // 1. 動態從 Firestore settings/keys 讀取 SMTP 帳密
+            let smtpEmail = null;
+            let smtpPassword = null;
+            try {
+                const keysDoc = await admin.firestore().collection('settings').doc('keys').get();
+                if (keysDoc.exists) {
+                    smtpEmail = keysDoc.data().smtpEmail || null;
+                    smtpPassword = keysDoc.data().smtpPassword || null;
+                }
+            } catch (dbErr) {
+                console.error('Failed to read SMTP keys from Firestore:', dbErr);
+            }
+
+            if (!smtpEmail || !smtpPassword) {
+                console.warn('SMTP credentials (smtpEmail, smtpPassword) not configured in settings/keys. Aborting email send.');
+                return null;
+            }
+
+            // 2. 建立 nodemailer transporter
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: smtpEmail,
+                    pass: smtpPassword
+                }
+            });
+
+            const mailOptions = {
+                from: `凱芳防災協助系統 <${smtpEmail}>`,
+                to: userEmail,
+                subject: '【凱芳防災協助系統】帳號審核通過通知',
+                html: `
+                    <div style="font-family: 'Noto Sans TC', sans-serif, Arial; padding: 25px; line-height: 1.6; color: #1e293b; background-color: #f8fafc; border-radius: 12px; max-width: 600px; margin: auto; border: 1px solid #e2e8f0;">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <h2 style="color: #06b6d4; margin: 0; font-size: 1.5rem;">凱芳防災協助系統</h2>
+                            <p style="color: #64748b; font-size: 0.85rem; margin: 5px 0 0 0;">自主防災・智慧決策輔助平台</p>
+                        </div>
+                        <hr style="border: none; border-top: 1px solid #e2e8f0; margin-bottom: 20px;">
+                        <p style="font-size: 1.05rem; font-weight: bold; margin-bottom: 15px;">您好，${userName}：</p>
+                        <p style="margin-bottom: 15px;">您申請的「凱芳防災協助系統」帳號已成功通過系統管理員審核！</p>
+                        <p style="margin-bottom: 25px;">您現在可以前往前台登入系統，查看風雨即時監測、調閱保全戶與避難收容資料，並使用 AI 助理進行決策協助。</p>
+                        
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <a href="https://kaifang-management.web.app" style="background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; box-shadow: 0 4px 10px rgba(6, 182, 212, 0.25);">
+                                💻 立即前往系統登入
+                            </a>
+                        </div>
+                        
+                        <p style="font-size: 0.85rem; color: #64748b; margin-top: 30px;">
+                            ※ 若您並未申請此帳號，請忽略本郵件。<br>
+                            ※ 本郵件由系統自動發送，請勿直接回覆本信。
+                        </p>
+                        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0 15px 0;">
+                        <div style="text-align: center; font-size: 0.75rem; color: #94a3b8;">
+                            © 凱芳智能管理顧問企業社 版權所有
+                        </div>
+                    </div>
+                `
+            };
+
+            try {
+                await transporter.sendMail(mailOptions);
+                console.log(`Successfully sent account approval notification email to ${userEmail}`);
+            } catch (error) {
+                console.error('Failed to send account approval email:', error);
+            }
+        }
+        return null;
+    });
 

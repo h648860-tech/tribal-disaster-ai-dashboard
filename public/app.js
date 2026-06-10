@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.21";
+const CURRENT_VERSION = "2.5.22";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -101,7 +101,9 @@ setTimeout(checkSystemVersion, 15000);
 // 全域 API 金鑰，自 Firebase Firestore 載入，取代本機快取以保安全
 const globalApiKeys = {
     cwaApiKey: "",
-    geminiApiKey: ""
+    geminiApiKey: "",
+    smtpEmail: "",
+    smtpPassword: ""
 };
 
 // 達仁鄉各村落經緯度座標對照表 (用於 Windy 地圖定位)
@@ -1593,6 +1595,8 @@ function initAuthSystem() {
     const geminiApiKeyInput = document.getElementById('geminiApiKey');
     const tgosAppIdInput = document.getElementById('tgosAppId');
     const tgosApiKeyInput = document.getElementById('tgosApiKey');
+    const smtpEmailInput = document.getElementById('smtpEmail');
+    const smtpPasswordInput = document.getElementById('smtpPassword');
     const btnSaveSettings = document.getElementById('btnSaveSettings');
     
     const appContainer = document.querySelector('.app-container');
@@ -1892,6 +1896,8 @@ function initAuthSystem() {
             // 清空金鑰與介面狀態
             globalApiKeys.cwaApiKey = "";
             globalApiKeys.geminiApiKey = "";
+            globalApiKeys.smtpEmail = "";
+            globalApiKeys.smtpPassword = "";
             currentUserVillage = "南興村";
             updateNetworkStatus();
             alert("您已成功登出系統。");
@@ -1988,6 +1994,8 @@ function initAuthSystem() {
                 geminiApiKeyInput.value = doc.data().geminiApiKey || "";
                 if (tgosAppIdInput) tgosAppIdInput.value = doc.data().tgosAppId || "";
                 if (tgosApiKeyInput) tgosApiKeyInput.value = doc.data().tgosApiKey || "";
+                if (smtpEmailInput) smtpEmailInput.value = doc.data().smtpEmail || "";
+                if (smtpPasswordInput) smtpPasswordInput.value = doc.data().smtpPassword || "";
             }
         }).catch(err => console.error("後台載入金鑰錯誤:", err));
     }
@@ -1998,6 +2006,8 @@ function initAuthSystem() {
             const geminiKey = geminiApiKeyInput.value.trim();
             const tgosId = tgosAppIdInput ? tgosAppIdInput.value.trim() : "";
             const tgosKey = tgosApiKeyInput ? tgosApiKeyInput.value.trim() : "";
+            const smtpMail = smtpEmailInput ? smtpEmailInput.value.trim() : "";
+            const smtpPass = smtpPasswordInput ? smtpPasswordInput.value.trim() : "";
 
             btnSaveSettings.disabled = true;
             btnSaveSettings.textContent = "⏳ 正在儲存金鑰...";
@@ -2007,18 +2017,22 @@ function initAuthSystem() {
                     cwaApiKey: cwaKey,
                     geminiApiKey: geminiKey,
                     tgosAppId: tgosId,
-                    tgosApiKey: tgosKey
+                    tgosApiKey: tgosKey,
+                    smtpEmail: smtpMail,
+                    smtpPassword: smtpPass
                 });
                 
                 // 同步至記憶體
                 globalApiKeys.cwaApiKey = cwaKey;
                 globalApiKeys.geminiApiKey = geminiKey;
+                if (smtpEmailInput) globalApiKeys.smtpEmail = smtpMail;
+                if (smtpPasswordInput) globalApiKeys.smtpPassword = smtpPass;
                 updateNetworkStatus();
                 if (typeof fetchRainfallData === 'function') {
                     fetchRainfallData();
                 }
 
-                alert("API 金鑰已成功同步寫入 Firebase 資料庫！");
+                alert("API 金鑰與 SMTP 設定已成功同步寫入 Firebase 資料庫！");
             } catch (err) {
                 console.error("儲存金鑰失敗:", err);
                 alert("儲存金鑰失敗：" + err.message);

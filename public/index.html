@@ -194,6 +194,14 @@
                                 <label for="tgosApiKey">TGOS API Key (用於精準門牌定位)：</label>
                                 <input type="password" id="tgosApiKey" class="custom-input" placeholder="輸入 TGOS 申請之 API Key..." style="width: 100%; background: #08090c; border: 1px solid rgba(255, 255, 255, 0.1); color: #ffffff; padding: 0.75rem; border-radius: 8px;">
                             </div>
+                            <div class="setting-item" style="margin-top: 1.5rem;">
+                                <label for="smtpEmail">SMTP 寄信 Email (帳號審核通知發送來源)：</label>
+                                <input type="text" id="smtpEmail" class="custom-input" placeholder="輸入 Gmail 帳號 (例如: your_account@gmail.com)..." style="width: 100%; background: #08090c; border: 1px solid rgba(255, 255, 255, 0.1); color: #ffffff; padding: 0.75rem; border-radius: 8px;">
+                            </div>
+                            <div class="setting-item" style="margin-top: 1.5rem;">
+                                <label for="smtpPassword">SMTP 應用程式密碼 (Google App Password 16碼)：</label>
+                                <input type="password" id="smtpPassword" class="custom-input" placeholder="輸入 16 碼 Google 應用程式密碼 (無空格)..." style="width: 100%; background: #08090c; border: 1px solid rgba(255, 255, 255, 0.1); color: #ffffff; padding: 0.75rem; border-radius: 8px;">
+                            </div>
                             <button class="btn btn-accent btn-full" id="btnSaveSettings" style="margin-top: 2rem;">💾 儲存金鑰設定</button>
                         </div>
                     </div>
@@ -1093,6 +1101,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=2.5.21"></script>
+    <script src="app.js?v=2.5.22"></script>
 </body>
 </html>

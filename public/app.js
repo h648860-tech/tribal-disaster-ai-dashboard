@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.24";
+const CURRENT_VERSION = "2.5.25";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -1994,9 +1994,11 @@ function initAuthSystem() {
 
     // 7. 管理者金鑰存取與寫入 (實作公開與敏感金鑰隔離)
     function loadApiKeysToAdminInputs() {
+        let hasCwaDoc = false;
         db.collection('settings').doc('cwa').get().then(cwaDoc => {
             if (cwaDoc.exists) {
                 cwaApiKeyInput.value = cwaDoc.data().cwaApiKey || "";
+                hasCwaDoc = true;
             }
         }).catch(err => console.error("後台載入公開金鑰錯誤:", err));
 
@@ -2010,6 +2012,19 @@ function initAuthSystem() {
                 if (tgosApiKeyInput) tgosApiKeyInput.value = doc.data().tgosApiKey || "";
                 if (smtpEmailInput) smtpEmailInput.value = doc.data().smtpEmail || "";
                 if (smtpPasswordInput) smtpPasswordInput.value = doc.data().smtpPassword || "";
+
+                // 自動背景遷移：若 settings/cwa 尚未寫入，但在 settings/keys 中有備份，管理員載入時會自動補全
+                const backupCwaKey = doc.data().cwaApiKey;
+                if (!hasCwaDoc && backupCwaKey) {
+                    db.collection('settings').doc('cwa').set({
+                        cwaApiKey: backupCwaKey
+                    }).then(() => {
+                        console.log("CWA 金鑰自動背景遷移成功。");
+                        globalApiKeys.cwaApiKey = backupCwaKey;
+                        updateNetworkStatus();
+                        if (typeof fetchRainfallData === 'function') fetchRainfallData();
+                    }).catch(e => console.error("金鑰自動遷移失敗:", e));
+                }
             }
         }).catch(err => console.error("後台載入敏感金鑰錯誤:", err));
     }

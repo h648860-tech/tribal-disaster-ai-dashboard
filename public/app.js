@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.27";
+const CURRENT_VERSION = "2.5.28";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -2774,16 +2774,21 @@ function initTyphoonData() {
                 if (rain1h >= 40) {
                     rain1hStatus.textContent = "🔴 警戒：短時強降雨警戒！";
                     rain1hStatus.style.color = "#e63946";
+                    rain1hVal.style.color = "#e63946";
                 } else if (rain1h >= 15) {
                     rain1hStatus.textContent = "🟡 注意：短時強降雨注意。";
                     rain1hStatus.style.color = "#ffb703";
+                    rain1hVal.style.color = "#ffb703";
                 } else {
                     rain1hStatus.textContent = "🟢 正常：降雨強度在安全範圍。";
                     rain1hStatus.style.color = "#2ec4b6";
+                    rain1hVal.style.color = "#2ec4b6";
                 }
             } else {
                 rain1hVal.textContent = "無資料";
+                rain1hVal.style.color = "";
                 rain1hStatus.textContent = "測站維護中或未回傳。";
+                rain1hStatus.style.color = "";
             }
         }
 
@@ -2793,16 +2798,21 @@ function initTyphoonData() {
             if (rain24h >= 200) {
                 rainStatus.textContent = "🔴 警戒：已達大豪雨等級！";
                 rainStatus.style.color = "#e63946";
+                rainVal.style.color = "#e63946";
             } else if (rain24h >= 80) {
                 rainStatus.textContent = "🟡 注意：已達大雨等級。";
                 rainStatus.style.color = "#ffb703";
+                rainVal.style.color = "#ffb703";
             } else {
                 rainStatus.textContent = "🟢 正常：降雨量在安全範圍內。";
                 rainStatus.style.color = "#2ec4b6";
+                rainVal.style.color = "#2ec4b6";
             }
         } else {
             rainVal.textContent = "無資料";
+            rainVal.style.color = "";
             rainStatus.textContent = "測站維護中或未回傳。";
+            rainStatus.style.color = "";
         }
 
         // Wind display
@@ -2812,16 +2822,21 @@ function initTyphoonData() {
             if (b >= 10) {
                 windStatus.textContent = "🔴 警告：狂風！有吹倒路樹危險！";
                 windStatus.style.color = "#e63946";
+                windVal.style.color = "#e63946";
             } else if (b >= 7) {
                 windStatus.textContent = "🟡 戒備：強風！外出請注意落石。";
                 windStatus.style.color = "#ffb703";
+                windVal.style.color = "#ffb703";
             } else {
                 windStatus.textContent = "🟢 正常：風力溫和。";
                 windStatus.style.color = "#2ec4b6";
+                windVal.style.color = "#2ec4b6";
             }
         } else {
             windVal.textContent = "無資料";
+            windVal.style.color = "";
             windStatus.textContent = "測站維護中或未回傳.";
+            windStatus.style.color = "";
         }
 
         typhoonNews.textContent = warning;
@@ -2850,16 +2865,19 @@ function initTyphoonData() {
             rain1hVal.innerHTML = `${simRain1h.toFixed(1)} <span class="unit">mm</span>`;
             rain1hStatus.textContent = "🔴 警戒：短時強降雨警戒！";
             rain1hStatus.style.color = "#e63946";
+            rain1hVal.style.color = "#e63946";
         }
 
         rainVal.innerHTML = `${simRain.toFixed(1)} <span class="unit">mm</span>`;
         rainStatus.textContent = "🔴 警戒：已突破超大豪雨臨界值！";
         rainStatus.style.color = "#e63946";
+        rainVal.style.color = "#e63946";
 
         const b = toBeaufort(simGust);
         windVal.innerHTML = `${b} <span class="unit">級 (${simGust.toFixed(1)} m/s)</span>`;
         windStatus.textContent = "🔴 警告：11級狂風！道路有樹倒與鐵皮吹飛危險！";
         windStatus.style.color = "#e63946";
+        windVal.style.color = "#e63946";
 
         typhoonNews.textContent = simWarning;
 

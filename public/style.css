@@ -2772,9 +2772,9 @@ body.modal-open {
 }
 
 .app-footer .footer-logo {
-    height: 36px;
+    height: 60px;
     width: auto;
-    filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.3));
+    filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.4));
 }
 
 .app-footer .footer-info {

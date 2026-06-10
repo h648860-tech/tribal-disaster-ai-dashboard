@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.22";
+const CURRENT_VERSION = "2.5.23";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -1491,6 +1491,7 @@ function initAuthSystem() {
     const signupConfirmPasswordInput = document.getElementById('signupConfirmPassword');
     const signupNameInput = document.getElementById('signupName');
     const signupPhoneInput = document.getElementById('signupPhone');
+    const signupEmailInput = document.getElementById('signupEmail');
     const signupJobInput = document.getElementById('signupJob');
     const signupCountyInput = document.getElementById('signupCounty');
     const signupTownInput = document.getElementById('signupTown');
@@ -1572,7 +1573,7 @@ function initAuthSystem() {
     };
     const signupInputs = [
         signupUsernameInput, signupPasswordInput, signupConfirmPasswordInput,
-        signupNameInput, signupPhoneInput, signupJobInput,
+        signupNameInput, signupPhoneInput, signupEmailInput, signupJobInput,
         signupCountyInput, signupTownInput, signupVillageInput
     ];
     signupInputs.forEach(input => {
@@ -1798,12 +1799,13 @@ function initAuthSystem() {
             const confirmPassword = signupConfirmPasswordInput.value;
             const name = signupNameInput.value.trim();
             const phone = signupPhoneInput.value.trim();
+            const emailVal = signupEmailInput ? signupEmailInput.value.trim() : "";
             const job = signupJobInput.value.trim();
             const county = signupCountyInput.value.trim();
             const town = signupTownInput.value.trim();
             const village = signupVillageInput.value.trim();
 
-            if (!username || !password || !confirmPassword || !name || !phone || !job || !county || !town || !village) {
+            if (!username || !password || !confirmPassword || !name || !phone || !emailVal || !job || !county || !town || !village) {
                 alert("所有欄位均為必填！");
                 return;
             }
@@ -1839,6 +1841,7 @@ function initAuthSystem() {
                     username: username,
                     name: name,
                     phone: phone,
+                    email: emailVal,
                     jobTitle: job,
                     county: county,
                     town: town,
@@ -1858,6 +1861,7 @@ function initAuthSystem() {
                 signupConfirmPasswordInput.value = "";
                 signupNameInput.value = "";
                 signupPhoneInput.value = "";
+                if (signupEmailInput) signupEmailInput.value = "";
                 signupJobInput.value = "";
                 signupCountyInput.value = "";
                 signupTownInput.value = "";

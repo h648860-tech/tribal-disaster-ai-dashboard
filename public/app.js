@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.28";
+const CURRENT_VERSION = "2.5.29";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -1698,6 +1698,30 @@ function initAuthSystem() {
             authScreen.classList.add('fade-out');
             toggleBodyScroll(false);
             updateNetworkStatus();
+
+            // 雲地雙軌同步 (Cloud-Edge Sync)：連網時自動載入雲端 SOP 覆蓋本地 LocalStorage 快取
+            if (navigator.onLine) {
+                db.collection('users').doc(user.uid).collection('sops').get().then((sopsSnapshot) => {
+                    const cloudSops = {};
+                    sopsSnapshot.forEach((doc) => {
+                        if (doc.data().content !== undefined) {
+                            cloudSops[doc.id] = doc.data().content;
+                        }
+                    });
+                    localStorage.setItem('custom_knowledge_base', JSON.stringify(cloudSops));
+                    
+                    // 重新渲染清單與首頁下拉選單
+                    if (typeof renderCustomTemplateList === 'function') {
+                        renderCustomTemplateList();
+                    }
+                    if (typeof window.updateSopQuickSelect === 'function') {
+                        window.updateSopQuickSelect();
+                    }
+                }).catch((err) => {
+                    console.error("同步雲端 SOP 資料失敗 (此錯誤不影響本地離線使用):", err);
+                });
+            }
+
             if (typeof fetchRainfallData === 'function') {
                 fetchRainfallData();
             }
@@ -3279,6 +3303,17 @@ function initOfflineTemplateSystem() {
             customKB[key] = content;
             localStorage.setItem('custom_knowledge_base', JSON.stringify(customKB));
 
+            // 雲端同步儲存 (Cloud-Edge Sync)
+            const currentUser = auth.currentUser;
+            if (currentUser && navigator.onLine) {
+                db.collection('users').doc(currentUser.uid).collection('sops').doc(key).set({
+                    content: content,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch((err) => {
+                    console.error("同步至雲端 SOP 失敗 (已儲存於本地):", err);
+                });
+            }
+
             if (templateStatus) templateStatus.textContent = `✅ 儲存成功！離線 SOP「${key}」已建立。`;
             templateKeyword.value = "";
             templatePrompt.value = "";
@@ -3319,6 +3354,7 @@ function initOfflineTemplateSystem() {
             </div>
         `).join('');
     }
+    window.renderCustomTemplateList = renderCustomTemplateList;
 
     // 綁定全域刪除函式供 onclick 調用
     window.deleteCustomTemplate = function(key) {
@@ -3334,6 +3370,15 @@ function initOfflineTemplateSystem() {
 
         delete customKB[key];
         localStorage.setItem('custom_knowledge_base', JSON.stringify(customKB));
+
+        // 雲端同步刪除 (Cloud-Edge Sync)
+        const currentUser = auth.currentUser;
+        if (currentUser && navigator.onLine) {
+            db.collection('users').doc(currentUser.uid).collection('sops').doc(key).delete().catch((err) => {
+                console.error("同步刪除雲端 SOP 失敗 (已自本地刪除):", err);
+            });
+        }
+
         renderCustomTemplateList();
 
         // 連動更新首頁的 SOP 下拉選單

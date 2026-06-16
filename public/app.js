@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.29";
+const CURRENT_VERSION = "2.5.30";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -1694,10 +1694,25 @@ function initAuthSystem() {
                 window.useWindyDefaultLocation();
             }
 
+            // 顯示問候畫面 (使用者的工作職稱 + 您好)
+            const greetingScreen = document.getElementById('greetingScreen');
+            const greetingTitle = document.getElementById('greetingTitle');
+            if (greetingScreen && greetingTitle) {
+                greetingTitle.textContent = `${userData.job || "防災專員"} 您好`;
+                greetingScreen.classList.remove('fade-out');
+            }
+
             // 隱藏登入遮罩並載入前台資料
             authScreen.classList.add('fade-out');
-            toggleBodyScroll(false);
             updateNetworkStatus();
+
+            // 3 秒後自動隱藏問候畫面並開啟網頁滾動
+            setTimeout(() => {
+                if (greetingScreen) {
+                    greetingScreen.classList.add('fade-out');
+                }
+                toggleBodyScroll(false);
+            }, 3000);
 
             // 雲地雙軌同步 (Cloud-Edge Sync)：連網時自動載入雲端 SOP 覆蓋本地 LocalStorage 快取
             if (navigator.onLine) {

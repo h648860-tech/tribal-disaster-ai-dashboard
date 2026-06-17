@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.30";
+const CURRENT_VERSION = "2.5.31";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -1702,14 +1702,22 @@ function initAuthSystem() {
                 greetingScreen.classList.remove('fade-out');
             }
 
+            // 嚴格先隱藏 UI 操作介面，防範加載時閃爍
+            if (appContainer) {
+                appContainer.classList.add('hidden');
+            }
+
             // 隱藏登入遮罩並載入前台資料
             authScreen.classList.add('fade-out');
             updateNetworkStatus();
 
-            // 3 秒後自動隱藏問候畫面並開啟網頁滾動
+            // 3 秒後自動隱藏問候畫面、顯示 UI 介面並開啟網頁滾動
             setTimeout(() => {
                 if (greetingScreen) {
                     greetingScreen.classList.add('fade-out');
+                }
+                if (appContainer) {
+                    appContainer.classList.remove('hidden');
                 }
                 toggleBodyScroll(false);
             }, 3000);

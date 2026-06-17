@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.32";
+const CURRENT_VERSION = "2.5.33";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -2460,7 +2460,11 @@ function initTyphoonData() {
         savedRainStation = "C0S990|山豬窟";
         localStorage.setItem('typhoonRainStation', savedRainStation);
     }
-    let savedWindStation = localStorage.getItem('typhoonWindStation') || "C0V250|南田";
+    let savedWindStation = localStorage.getItem('typhoonWindStation') || "C0S840|南田";
+    if (savedWindStation.startsWith("C0V250")) {
+        savedWindStation = "C0S840|南田";
+        localStorage.setItem('typhoonWindStation', savedWindStation);
+    }
 
     // 本地預設防災測站 (無金鑰或離線時備援)
     const defaultRainStations = [

@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.31";
+const CURRENT_VERSION = "2.5.32";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -1698,7 +1698,7 @@ function initAuthSystem() {
             const greetingScreen = document.getElementById('greetingScreen');
             const greetingTitle = document.getElementById('greetingTitle');
             if (greetingScreen && greetingTitle) {
-                greetingTitle.textContent = `${userData.job || "防災專員"} 您好`;
+                greetingTitle.textContent = `${userData.jobTitle || "防災專員"} 您好`;
                 greetingScreen.classList.remove('fade-out');
             }
 

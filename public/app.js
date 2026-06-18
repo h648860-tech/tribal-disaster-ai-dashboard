@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.34";
+const CURRENT_VERSION = "2.5.35";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -102,6 +102,7 @@ setTimeout(checkSystemVersion, 15000);
 const globalApiKeys = {
     cwaApiKey: "",
     geminiApiKey: "",
+    googleGeocodingApiKey: "",
     smtpEmail: "",
     smtpPassword: ""
 };
@@ -1598,6 +1599,7 @@ function initAuthSystem() {
     const tgosApiKeyInput = document.getElementById('tgosApiKey');
     const smtpEmailInput = document.getElementById('smtpEmail');
     const smtpPasswordInput = document.getElementById('smtpPassword');
+    const googleGeocodingApiKeyInput = document.getElementById('googleGeocodingApiKey');
     const btnSaveSettings = document.getElementById('btnSaveSettings');
     
     const appContainer = document.querySelector('.app-container');
@@ -1683,6 +1685,15 @@ function initAuthSystem() {
                 }
             } catch (err) {
                 console.warn("載入公開 CWA 金鑰失敗 (可能未設定):", err);
+            }
+
+            try {
+                const googleDoc = await db.collection('settings').doc('google').get();
+                if (googleDoc.exists) {
+                    globalApiKeys.googleGeocodingApiKey = googleDoc.data().googleGeocodingApiKey || "";
+                }
+            } catch (err) {
+                console.warn("載入公開 Google 金鑰失敗 (可能未設定):", err);
             }
             
             // 更新 Windy 地圖的預設按鈕與定位
@@ -1949,6 +1960,7 @@ function initAuthSystem() {
             // 清空金鑰與介面狀態
             globalApiKeys.cwaApiKey = "";
             globalApiKeys.geminiApiKey = "";
+            globalApiKeys.googleGeocodingApiKey = "";
             globalApiKeys.smtpEmail = "";
             globalApiKeys.smtpPassword = "";
             currentUserVillage = "南興村";
@@ -2047,12 +2059,25 @@ function initAuthSystem() {
                 cwaApiKeyInput.value = cwaDoc.data().cwaApiKey || "";
                 hasCwaDoc = true;
             }
-        }).catch(err => console.error("後台載入公開金鑰錯誤:", err));
+        }).catch(err => console.error("後台載入公開 CWA 金鑰錯誤:", err));
+
+        let hasGoogleDoc = false;
+        db.collection('settings').doc('google').get().then(googleDoc => {
+            if (googleDoc.exists) {
+                if (googleGeocodingApiKeyInput) {
+                    googleGeocodingApiKeyInput.value = googleDoc.data().googleGeocodingApiKey || "";
+                }
+                hasGoogleDoc = true;
+            }
+        }).catch(err => console.error("後台載入公開 Google 金鑰錯誤:", err));
 
         db.collection('settings').doc('keys').get().then(doc => {
             if (doc.exists) {
                 if (!cwaApiKeyInput.value) {
                     cwaApiKeyInput.value = doc.data().cwaApiKey || "";
+                }
+                if (googleGeocodingApiKeyInput && !googleGeocodingApiKeyInput.value) {
+                    googleGeocodingApiKeyInput.value = doc.data().googleGeocodingApiKey || "";
                 }
                 geminiApiKeyInput.value = doc.data().geminiApiKey || "";
                 if (tgosAppIdInput) tgosAppIdInput.value = doc.data().tgosAppId || "";
@@ -2072,6 +2097,17 @@ function initAuthSystem() {
                         if (typeof fetchRainfallData === 'function') fetchRainfallData();
                     }).catch(e => console.error("金鑰自動遷移失敗:", e));
                 }
+
+                // 自動背景遷移：若 settings/google 尚未寫入，但在 settings/keys 中有備份，管理員載入時會自動補全
+                const backupGoogleKey = doc.data().googleGeocodingApiKey;
+                if (!hasGoogleDoc && backupGoogleKey) {
+                    db.collection('settings').doc('google').set({
+                        googleGeocodingApiKey: backupGoogleKey
+                    }).then(() => {
+                        console.log("Google 金鑰自動背景遷移成功。");
+                        globalApiKeys.googleGeocodingApiKey = backupGoogleKey;
+                    }).catch(e => console.error("Google 金鑰自動遷移失敗:", e));
+                }
             }
         }).catch(err => console.error("後台載入敏感金鑰錯誤:", err));
     }
@@ -2082,6 +2118,7 @@ function initAuthSystem() {
             const geminiKey = geminiApiKeyInput.value.trim();
             const tgosId = tgosAppIdInput ? tgosAppIdInput.value.trim() : "";
             const tgosKey = tgosApiKeyInput ? tgosApiKeyInput.value.trim() : "";
+            const googleGeocodingKey = googleGeocodingApiKeyInput ? googleGeocodingApiKeyInput.value.trim() : "";
             const smtpMail = smtpEmailInput ? smtpEmailInput.value.trim() : "";
             const smtpPass = smtpPasswordInput ? smtpPasswordInput.value.trim() : "";
 
@@ -2089,15 +2126,19 @@ function initAuthSystem() {
             btnSaveSettings.textContent = "⏳ 正在儲存金鑰...";
 
             try {
-                // 分開儲存：cwaApiKey 寫入公開 settings/cwa，其餘敏感金鑰寫入限 admin 存取之 settings/keys
+                // 分開儲存：cwaApiKey 寫入公開 settings/cwa，googleGeocodingApiKey 寫入 settings/google，其餘敏感金鑰寫入限 admin 存取之 settings/keys
                 await db.collection('settings').doc('cwa').set({
                     cwaApiKey: cwaKey
+                });
+                await db.collection('settings').doc('google').set({
+                    googleGeocodingApiKey: googleGeocodingKey
                 });
                 await db.collection('settings').doc('keys').set({
                     cwaApiKey: cwaKey,
                     geminiApiKey: geminiKey,
                     tgosAppId: tgosId,
                     tgosApiKey: tgosKey,
+                    googleGeocodingApiKey: googleGeocodingKey,
                     smtpEmail: smtpMail,
                     smtpPassword: smtpPass
                 });
@@ -2105,6 +2146,7 @@ function initAuthSystem() {
                 // 同步至記憶體
                 globalApiKeys.cwaApiKey = cwaKey;
                 globalApiKeys.geminiApiKey = geminiKey;
+                globalApiKeys.googleGeocodingApiKey = googleGeocodingKey;
                 if (smtpEmailInput) globalApiKeys.smtpEmail = smtpMail;
                 if (smtpPasswordInput) globalApiKeys.smtpPassword = smtpPass;
                 updateNetworkStatus();
@@ -3108,32 +3150,56 @@ function initLocationPositioning() {
             let resolvedAddr = "";
             let method = "";
 
-            // 1. 優先透過後端 Cloud Functions 呼叫 TGOS API
-            const currentUser = auth.currentUser;
-            if (currentUser) {
+            // 1. 優先使用 Google Maps Geocoding API (如果前端有配置金鑰)
+            if (globalApiKeys.googleGeocodingApiKey) {
                 try {
-                    const idToken = await currentUser.getIdToken();
-                    const tgosUrl = `/api/geocode?address=${encodeURIComponent(address)}`;
-                    const tgosResponse = await fetch(tgosUrl, {
-                        headers: {
-                            'Authorization': `Bearer ${idToken}`
+                    const googleUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${globalApiKeys.googleGeocodingApiKey}&language=zh-TW`;
+                    const googleResponse = await fetch(googleUrl);
+                    if (googleResponse.ok) {
+                        const googleResult = await googleResponse.json();
+                        if (googleResult.status === "OK" && googleResult.results && googleResult.results.length > 0) {
+                            const result = googleResult.results[0];
+                            lat = result.geometry.location.lat;
+                            lng = result.geometry.location.lng;
+                            resolvedAddr = result.formatted_address;
+                            method = "Google";
+                        } else {
+                            console.warn("Google Geocoding returned non-OK status:", googleResult.status);
                         }
-                    });
-                    if (tgosResponse.ok) {
-                         const tgosResult = await tgosResponse.json();
-                         if (tgosResult && tgosResult.success) {
-                             lat = tgosResult.lat;
-                             lng = tgosResult.lng;
-                             resolvedAddr = tgosResult.formattedAddress;
-                             method = "TGOS";
-                         }
                     }
-                } catch (tgosErr) {
-                    console.warn("TGOS Geocoding failed, trying fallback...", tgosErr);
+                } catch (googleErr) {
+                    console.warn("Google Geocoding failed, trying fallback...", googleErr);
                 }
             }
 
-            // 2. 若 TGOS 解析無果或未配置金鑰，Fallback 啟用「OSM 剝皮式自動裁剪模糊搜尋」
+            // 2. 次之透過後端 Cloud Functions 呼叫 TGOS API (若無 Google 金鑰或 Google 解析無果)
+            if (lat === null || lng === null) {
+                const currentUser = auth.currentUser;
+                if (currentUser) {
+                    try {
+                        const idToken = await currentUser.getIdToken();
+                        const tgosUrl = `/api/geocode?address=${encodeURIComponent(address)}`;
+                        const tgosResponse = await fetch(tgosUrl, {
+                            headers: {
+                                'Authorization': `Bearer ${idToken}`
+                            }
+                        });
+                        if (tgosResponse.ok) {
+                             const tgosResult = await tgosResponse.json();
+                             if (tgosResult && tgosResult.success) {
+                                 lat = tgosResult.lat;
+                                 lng = tgosResult.lng;
+                                 resolvedAddr = tgosResult.formattedAddress;
+                                 method = "TGOS";
+                             }
+                        }
+                    } catch (tgosErr) {
+                        console.warn("TGOS Geocoding failed, trying fallback...", tgosErr);
+                    }
+                }
+            }
+
+            // 3. 若均解析無果，Fallback 啟用「OSM 剝皮式自動裁剪模糊搜尋」
             if (lat === null || lng === null) {
                 let currentSearchAddr = address;
                 let attempts = 0;
@@ -3171,7 +3237,9 @@ function initLocationPositioning() {
                 updateMap();
 
                 // 彈出友善的定位結果提示
-                if (method === "TGOS") {
+                if (method === "Google") {
+                    console.log(`Google Maps 定位成功: ${resolvedAddr}`);
+                } else if (method === "TGOS") {
                     console.log(`TGOS 精準定位成功: ${resolvedAddr}`);
                 } else if (method === "OSM") {
                     if (resolvedAddr !== address) {

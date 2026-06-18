@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.33";
+const CURRENT_VERSION = "2.5.34";
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -3012,11 +3012,58 @@ function initLocationPositioning() {
     const locLngInput = document.getElementById('locLng');
     const locAddressInput = document.getElementById('locAddress');
     const btnGeocode = document.getElementById('btnGeocode');
-    const mapIframe = document.getElementById('mapIframe');
+    const mapDiv = document.getElementById('leafletMap');
     const mapOfflineFallback = document.getElementById('mapOfflineFallback');
     const offlineMapCoords = document.getElementById('offlineMapCoords');
 
-    if (!btnLocate || !locLatInput || !locLngInput || !mapIframe) return;
+    if (!btnLocate || !locLatInput || !locLngInput || !mapDiv) return;
+
+    let map = null;
+    let marker = null;
+
+    // 初始化 Leaflet 地圖
+    function setupLeafletMap() {
+        const defaultLat = parseFloat(locLatInput.value) || 22.385800;
+        const defaultLng = parseFloat(locLngInput.value) || 120.892700;
+
+        if (typeof L === 'undefined') {
+            console.error("Leaflet library not loaded! Retrying in 1 second...");
+            setTimeout(setupLeafletMap, 1000);
+            return;
+        }
+
+        try {
+            map = L.map('leafletMap', {
+                zoomControl: true,
+                attributionControl: true
+            }).setView([defaultLat, defaultLng], 16);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            marker = L.marker([defaultLat, defaultLng]).addTo(map);
+
+            // 點擊地圖時更新經緯度與標記位置
+            map.on('click', (e) => {
+                const { lat, lng } = e.latlng;
+                locLatInput.value = lat.toFixed(6);
+                locLngInput.value = lng.toFixed(6);
+                marker.setLatLng([lat, lng]);
+
+                // 連動更新 Windy 颱風雷達圖中心點
+                if (typeof window.updateWindyRadar === 'function') {
+                    window.updateWindyRadar(lat, lng);
+                }
+            });
+        } catch (err) {
+            console.error("Failed to initialize Leaflet map:", err);
+        }
+    }
+
+    // 初始化地圖
+    setupLeafletMap();
 
     // 輔助函式：剝皮裁剪地址以進行模糊比對
     function peelAddress(addr) {
@@ -3157,22 +3204,27 @@ function initLocationPositioning() {
     function updateMap() {
         const lat = parseFloat(locLatInput.value) || 22.385800;
         const lng = parseFloat(locLngInput.value) || 120.892700;
-
         const isOnline = navigator.onLine;
 
         if (isOnline) {
-            mapIframe.style.display = "block";
+            if (mapDiv) mapDiv.style.display = "block";
             if (mapOfflineFallback) mapOfflineFallback.style.display = "none";
             
-            // 使用 Google Maps 免金鑰嵌入式 API，支援紅色 Marker 標記
-            mapIframe.src = `https://maps.google.com/maps?q=${lat},${lng}&hl=zh-TW&z=16&output=embed`;
+            if (map && marker) {
+                marker.setLatLng([lat, lng]);
+                map.setView([lat, lng], 16);
+                // 確保容器尺寸更新後，Leaflet 重繪正常
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 100);
+            }
             
             // 連動更新 Windy 颱風雷達圖中心點
             if (typeof window.updateWindyRadar === 'function') {
                 window.updateWindyRadar(lat, lng);
             }
         } else {
-            mapIframe.style.display = "none";
+            if (mapDiv) mapDiv.style.display = "none";
             if (mapOfflineFallback) {
                 mapOfflineFallback.style.display = "flex";
                 offlineMapCoords.textContent = `📡 聯外網路斷線，已啟用本機微波定位對照座標：${lat.toFixed(6)}, ${lng.toFixed(6)}`;

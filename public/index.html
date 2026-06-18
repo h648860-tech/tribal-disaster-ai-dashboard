@@ -19,6 +19,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
     
+    <!-- Leaflet 地圖庫 (替代 Google Maps / TGOS) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
     <!-- Firebase 相容版 SDK (Compat SDK) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -526,9 +530,8 @@
                     <button class="btn btn-accent btn-full" id="btnLocate" style="margin-bottom: 0.75rem;">🗺️ 立即定位位置</button>
                     
                     <div class="map-container" style="height: 480px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; background: #040508; position: relative;">
-                        <!-- Google Maps Iframe -->
-                        <iframe id="mapIframe" src="https://maps.google.com/maps?q=22.385800,120.892700&hl=zh-TW&z=16&output=embed" style="width: 100%; height: 100%; border: none;"></iframe>
-                        
+                        <!-- Leaflet 互動地圖容器 -->
+                        <div id="leafletMap" style="width: 100%; height: 100%; z-index: 1;"></div>
                         <!-- Offline Map Fallback -->
                         <div id="mapOfflineFallback" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; background: radial-gradient(circle at center, #0c121e 0%, #05080f 100%); flex-direction:column; align-items:center; justify-content:center; padding:1.5rem; text-align:center; z-index:5;">
                             <div class="fallback-radar-grid" style="position:relative; width:100px; height:100px; border:1px solid rgba(6,182,212,0.2); border-radius:50%; margin-bottom:1rem; background:repeating-radial-gradient(circle, transparent, transparent 10px, rgba(6,182,212,0.05) 10px, rgba(6,182,212,0.05) 11px);">
@@ -1117,6 +1120,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=2.5.33"></script>
+    <script src="app.js?v=2.5.34"></script>
 </body>
 </html>

@@ -1,6 +1,122 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.36";
+const CURRENT_VERSION = "2.5.37";
+
+// 避難名冊之收容所過濾全域變數
+let selectedEvacShelterFilterId = null;
+let selectedEvacShelterFilterName = "";
+
+// 取得分層結構的保全戶名冊 (戶長第一層，家人第二層)
+function getHierarchicalResidents(residentsList, query, statusFilter = 'all', selectedShelterId = null) {
+    const allMap = {};
+    residentsList.forEach(r => {
+        if (r && r.id) allMap[r.id] = r;
+    });
+
+    const heads = [];
+    const membersByHead = {};
+    const orphans = [];
+
+    residentsList.forEach(r => {
+        if (!r) return;
+        if (r.relation === 'head') {
+            heads.push(r);
+        } else {
+            const hId = r.householdId;
+            const headExists = hId && allMap[hId] && allMap[hId].relation === 'head';
+            if (headExists) {
+                if (!membersByHead[hId]) {
+                    membersByHead[hId] = [];
+                }
+                membersByHead[hId].push(r);
+            } else {
+                orphans.push(r);
+            }
+        }
+    });
+
+    // 檢查單一成員是否符合「狀態、收容所與搜尋」三大過濾條件
+    const isMatch = (r) => {
+        if (!r) return false;
+        
+        // 1. 避難狀態過濾
+        if (statusFilter !== 'all') {
+            if (statusFilter === 'none') {
+                if (r.evacuationStatus === 'relatives' || r.evacuationStatus === 'shelter') return false;
+            } else {
+                if (r.evacuationStatus !== statusFilter) return false;
+            }
+        }
+
+        // 2. 指定收容所過濾
+        if (selectedShelterId) {
+            if (r.evacuationStatus !== 'shelter' || r.shelterId !== selectedShelterId) return false;
+        }
+
+        // 3. 關鍵字搜尋過濾
+        if (query) {
+            const lowerQuery = query.toLowerCase();
+            return (r.name && r.name.toLowerCase().includes(lowerQuery)) || 
+                   (r.address && r.address.toLowerCase().includes(lowerQuery)) ||
+                   (r.phone && r.phone.includes(lowerQuery));
+        }
+
+        return true;
+    };
+
+    let activeHeads = [];
+    let activeMembersByHead = {};
+    let activeOrphans = [];
+
+    // 對於每個家戶，如果戶長本人符合，或是其家人有任何人符合，則此家戶都要被渲染
+    heads.forEach(h => {
+        const headMatch = isMatch(h);
+        const familyMembers = membersByHead[h.id] || [];
+        const matchingMembers = familyMembers.filter(isMatch);
+
+        if (headMatch || matchingMembers.length > 0) {
+            activeHeads.push(h);
+            activeMembersByHead[h.id] = matchingMembers;
+        }
+    });
+
+    orphans.forEach(r => {
+        if (isMatch(r)) {
+            activeOrphans.push(r);
+        }
+    });
+
+    // 扁平化輸出但帶有層級標記
+    const result = [];
+    activeHeads.forEach(h => {
+        result.push({
+            data: h,
+            isHead: true,
+            level: 1,
+            isSelfMatch: isMatch(h)
+        });
+        const members = activeMembersByHead[h.id] || [];
+        members.forEach(m => {
+            result.push({
+                data: m,
+                isHead: false,
+                level: 2,
+                isSelfMatch: true
+            });
+        });
+    });
+
+    activeOrphans.forEach(o => {
+        result.push({
+            data: o,
+            isHead: false,
+            level: 1,
+            isSelfMatch: true
+        });
+    });
+
+    return result;
+}
 
 // 去識別化工具函式 (全域作用域，供不同資料庫渲染名冊時共用)
 function maskName(name) {
@@ -3713,34 +3829,50 @@ function initResidentsDatabase() {
     // Render Table
     function renderResidentsTable() {
         const query = residentsSearch.value.trim().toLowerCase();
-        let filtered = localResidentsData;
         
-        if (query) {
-            filtered = localResidentsData.filter(r => 
-                (r.name && r.name.toLowerCase().includes(query)) || 
-                (r.address && r.address.toLowerCase().includes(query)) ||
-                (r.phone && r.phone.includes(query))
-            );
-        }
+        // 取得分層結構的資料
+        const hierarchicalList = getHierarchicalResidents(localResidentsData, query, 'all', null);
         
-        if (filtered.length === 0) {
+        if (hierarchicalList.length === 0) {
             residentsTableBody.innerHTML = '<tr><td colspan="7" class="text-center" style="color: var(--color-text-muted); padding: 2rem;">目前查無保全戶資料。</td></tr>';
             return;
         }
         
-        residentsTableBody.innerHTML = filtered.map(r => {
+        residentsTableBody.innerHTML = hierarchicalList.map(item => {
+            const r = item.data;
+            const isHead = item.isHead;
+            const level = item.level;
+            const isSelfMatch = item.isSelfMatch;
+            
             let relationText = "";
-            if (r.relation === 'head') {
+            let rowStyle = "";
+            let namePrefix = "";
+            
+            if (isHead) {
                 relationText = '<span class="sensor-badge" style="background: rgba(6,182,212,0.15); color: var(--color-cyan);">🏠 戶長 (自立)</span>';
+                rowStyle = 'background: rgba(6,182,212,0.02); font-weight: 600;';
+                namePrefix = '<b>🏠 </b>';
             } else {
-                const head = localResidentsData.find(h => h.id === r.householdId);
-                const headName = head ? maskName(head.name) : "未知戶長";
-                relationText = `<span class="sensor-badge" style="background: rgba(255,255,255,0.06); color: var(--color-text-muted);">👪 家人 (戶長: ${headName})</span>`;
+                if (level === 2) {
+                    const head = localResidentsData.find(h => h.id === r.householdId);
+                    const headName = head ? maskName(head.name) : "未知戶長";
+                    relationText = `<span class="sensor-badge" style="background: rgba(255,255,255,0.06); color: var(--color-text-muted);">👪 家人 (戶長: ${headName})</span>`;
+                    rowStyle = 'background: transparent; opacity: 0.9;';
+                    namePrefix = '<span style="color: var(--color-text-muted); margin-right: 0.5rem; font-family: monospace;">└─ 👤</span>';
+                } else {
+                    relationText = '<span class="sensor-badge" style="background: rgba(255,255,255,0.06); color: var(--color-text-muted);">👤 獨立成員</span>';
+                    namePrefix = '<b>👤 </b>';
+                }
+            }
+            
+            // 如果此行自己不符合搜尋（純容器）
+            if (!isSelfMatch) {
+                rowStyle += ' opacity: 0.4;';
             }
             
             return `
-                <tr>
-                    <td style="font-weight: 700;">${maskName(r.name || "")}</td>
+                <tr style="${rowStyle}">
+                    <td style="padding-left: ${level === 2 ? '1.5rem' : '0.75rem'};">${namePrefix}${maskName(r.name || "")}</td>
                     <td>${r.gender === 'male' ? '男' : r.gender === 'female' ? '女' : '其他'}</td>
                     <td style="font-family: monospace;">${r.age ?? ""} 歲</td>
                     <td style="font-family: monospace;">${maskPhone(r.phone || "")}</td>
@@ -4030,6 +4162,32 @@ function initSheltersDatabase() {
     }
     
     // Render Shelters list (With custom occupancy statistics: households & people)
+    // 點選收容所過濾避難名冊
+    window.selectShelterFilter = function(shelterId, shelterName) {
+        if (selectedEvacShelterFilterId === shelterId) {
+            // 取消選取
+            selectedEvacShelterFilterId = null;
+            selectedEvacShelterFilterName = "";
+        } else {
+            // 設定過濾
+            selectedEvacShelterFilterId = shelterId;
+            selectedEvacShelterFilterName = shelterName;
+        }
+        
+        // 更新標題
+        const evacTitle = document.getElementById('evacTableTitle');
+        if (evacTitle) {
+            if (selectedEvacShelterFilterId) {
+                evacTitle.innerHTML = `📋 避難撤離名冊 <span style="font-size: 0.85rem; color: var(--color-success); background: rgba(46,196,182,0.1); border: 1px solid rgba(46,196,182,0.3); padding: 0.1rem 0.4rem; border-radius: 4px; margin-left: 0.5rem; display: inline-flex; align-items: center; font-weight: normal; vertical-align: middle;">⛺ 已過濾: ${shelterName} <span style="cursor: pointer; font-weight: bold; margin-left: 0.35rem; color: #f87171; line-height: 1;" onclick="event.stopPropagation(); selectShelterFilter('${shelterId}', '${shelterName}');">&times;</span></span>`;
+            } else {
+                evacTitle.innerHTML = `📋 避難撤離名冊設定`;
+            }
+        }
+        
+        renderSheltersTable();
+        renderEvacTable();
+    };
+
     function renderSheltersTable() {
         if (localSheltersData.length === 0) {
             sheltersTableBody.innerHTML = '<tr><td colspan="3" class="text-center" style="color: var(--color-text-muted); padding: 1.5rem;">目前無收容中心資料，請於上方新增。</td></tr>';
@@ -4042,10 +4200,15 @@ function initSheltersDatabase() {
             const peopleCount = inShelter.length;
             const uniqueHouseholds = new Set(inShelter.map(r => r.householdId).filter(id => id)).size;
             
+            const isSelected = selectedEvacShelterFilterId === s.id;
+            const rowStyle = isSelected 
+                ? 'background: rgba(46, 196, 182, 0.15) !important; border-left: 3px solid var(--color-success);' 
+                : '';
+            
             return `
-                <tr>
-                    <td style="font-weight: 700; color: #ffffff;">⛺ ${s.name}</td>
-                    <td style="font-size: 0.85rem; color: var(--color-success); font-weight: 600;">
+                <tr style="${rowStyle}">
+                    <td style="font-weight: 700; color: #ffffff; cursor: pointer;" onclick="selectShelterFilter('${s.id}', '${s.name}')">⛺ ${s.name}</td>
+                    <td style="font-size: 0.85rem; color: var(--color-success); font-weight: 600; cursor: pointer;" onclick="selectShelterFilter('${s.id}', '${s.name}')">
                         ${uniqueHouseholds} 戶 ${peopleCount} 人
                     </td>
                     <td>
@@ -4075,45 +4238,40 @@ function initSheltersDatabase() {
         try {
             const query = sheltersSearch ? sheltersSearch.value.trim().toLowerCase() : "";
             const statusFilter = evacStatusFilter ? evacStatusFilter.value : "all";
-            let filtered = localResidentsData || [];
             
-            // 1. 依避難狀態進行過濾
-            if (statusFilter !== 'all') {
-                filtered = filtered.filter(r => {
-                    if (statusFilter === 'none') {
-                        return r.evacuationStatus !== 'relatives' && r.evacuationStatus !== 'shelter';
-                    }
-                    return r.evacuationStatus === statusFilter;
-                });
-            }
+            // 取得分層結構的資料，並帶入 statusFilter 和 selectedEvacShelterFilterId
+            const hierarchicalList = getHierarchicalResidents(
+                localResidentsData || [], 
+                query, 
+                statusFilter, 
+                selectedEvacShelterFilterId
+            );
             
-            // 2. 依姓名或地址關鍵字進行搜尋
-            if (query) {
-                filtered = filtered.filter(r => 
-                    (r.name && r.name.toLowerCase().includes(query)) || 
-                    (r.address && r.address.toLowerCase().includes(query))
-                );
-            }
-            
-            if (filtered.length === 0) {
+            if (hierarchicalList.length === 0) {
                 if (evacTableBody) {
                     evacTableBody.innerHTML = '<tr><td colspan="5" class="text-center" style="color: var(--color-text-muted); padding: 1.5rem;">查無名冊資料。</td></tr>';
                 }
                 return;
             }
             
-            const html = filtered.map(r => {
-                // Find head name
+            const html = hierarchicalList.map(item => {
+                const r = item.data;
+                const isHead = item.isHead;
+                const level = item.level;
+                const isSelfMatch = item.isSelfMatch;
+                
                 let headName = "自己";
                 if (r.relation === 'member') {
                     const headDoc = localResidentsData.find(h => h.id === r.householdId);
                     headName = headDoc ? maskName(headDoc.name) : "未知戶長";
+                } else if (r.relation === 'head') {
+                    headName = "🏠 戶長";
                 }
                 
                 // Render evac status text
                 let statusBadge = "";
                 if (r.evacuationStatus === 'relatives') {
-                    statusBadge = '<span class="sensor-badge" style="background: rgba(255, 183, 3, 0.15); color: var(--color-warning);">🏡 依親撤離</span>';
+                    statusBadge = '<span class="sensor-badge" style="background: rgba(255, 183, 3, 0.15); color: var(--color-warning);">🏡 依親避難</span>';
                 } else if (r.evacuationStatus === 'shelter') {
                     const sh = localSheltersData.find(s => s.id === r.shelterId);
                     const shName = sh ? sh.name : "已刪除的收容所";
@@ -4122,10 +4280,35 @@ function initSheltersDatabase() {
                     statusBadge = '<span class="sensor-badge" style="background: rgba(230, 57, 70, 0.15); color: var(--color-danger);">🚨 尚未撤離</span>';
                 }
                 
+                let rowStyle = "";
+                let namePrefix = "";
+                let checkboxHtml = "";
+                
+                if (isHead) {
+                    rowStyle = 'background: rgba(6,182,212,0.02); font-weight: 600;';
+                    namePrefix = '<b>🏠 </b>';
+                } else {
+                    if (level === 2) {
+                        rowStyle = 'background: transparent; opacity: 0.9;';
+                        namePrefix = '<span style="color: var(--color-text-muted); margin-right: 0.5rem; font-family: monospace;">└─ 👤</span>';
+                    } else {
+                        rowStyle = 'background: transparent;';
+                        namePrefix = '<b>👤 </b>';
+                    }
+                }
+                
+                // 如果是純容器（自己不符合過濾，只是因為家人符合而顯示的戶長）
+                if (!isSelfMatch) {
+                    rowStyle += ' opacity: 0.4;';
+                    checkboxHtml = `<span style="color: var(--color-text-muted); font-size: 0.75rem;">-</span>`;
+                } else {
+                    checkboxHtml = `<input type="checkbox" class="chk-evac-row" value="${r.id}">`;
+                }
+                
                 return `
-                    <tr>
-                        <td><input type="checkbox" class="chk-evac-row" value="${r.id}"></td>
-                        <td style="font-weight: 700;">${maskName(r.name)}</td>
+                    <tr style="${rowStyle}">
+                        <td style="text-align: center;">${checkboxHtml}</td>
+                        <td style="padding-left: ${level === 2 ? '1.5rem' : '0.75rem'};">${namePrefix}${maskName(r.name)}</td>
                         <td style="font-size: 0.75rem; color: var(--color-text-muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${maskAddress(r.address || "")}</td>
                         <td style="font-size: 0.8rem;">${headName}</td>
                         <td>${statusBadge}</td>

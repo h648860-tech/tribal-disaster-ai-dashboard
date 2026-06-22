@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.38";
+const CURRENT_VERSION = "2.5.39";
 
 // 避難名冊之收容所過濾全域變數
 let selectedEvacShelterFilterId = null;
@@ -3191,7 +3191,7 @@ function initLocationPositioning() {
         }
 
         try {
-            // 建立兩個基礎圖層
+            // 建立三個基礎圖層
             const streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '© OpenStreetMap contributors'
@@ -3200,6 +3200,11 @@ function initLocationPositioning() {
             const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 maxZoom: 19,
                 attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            });
+
+            const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                attribution: 'Map data © Google'
             });
 
             map = L.map('leafletMap', {
@@ -3211,7 +3216,8 @@ function initLocationPositioning() {
             // 定義基礎圖層選項
             const baseMaps = {
                 "🗺️ 普通地圖": streetMap,
-                "🛰️ 衛星航照圖": satelliteMap
+                "🛰️ Esri 航照圖": satelliteMap,
+                "🛰️ Google 衛星圖": googleHybrid
             };
 
             // 將圖層控制開關加到右上角

@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.37";
+const CURRENT_VERSION = "2.5.38";
 
 // 避難名冊之收容所過濾全域變數
 let selectedEvacShelterFilterId = null;
@@ -3191,15 +3191,31 @@ function initLocationPositioning() {
         }
 
         try {
-            map = L.map('leafletMap', {
-                zoomControl: true,
-                attributionControl: true
-            }).setView([defaultLat, defaultLng], 16);
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            // 建立兩個基礎圖層
+            const streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
+            });
+
+            const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            });
+
+            map = L.map('leafletMap', {
+                zoomControl: true,
+                attributionControl: true,
+                layers: [streetMap]
+            }).setView([defaultLat, defaultLng], 16);
+
+            // 定義基礎圖層選項
+            const baseMaps = {
+                "🗺️ 普通地圖": streetMap,
+                "🛰️ 衛星航照圖": satelliteMap
+            };
+
+            // 將圖層控制開關加到右上角
+            L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
             marker = L.marker([defaultLat, defaultLng]).addTo(map);
 

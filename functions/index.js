@@ -265,3 +265,82 @@ exports.onUserApprovedSendEmail = functions.firestore
         return null;
     });
 
+exports.fetchCwaData = functions.https.onRequest(async (req, res) => {
+    // 啟用 CORS
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(204).send('');
+    }
+
+    if (req.method !== 'GET') {
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    // 1. 驗證 Firebase Auth ID Token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized: Missing token' });
+    }
+
+    const idToken = authHeader.split('Bearer ')[1];
+    try {
+        await admin.auth().verifyIdToken(idToken);
+    } catch (err) {
+        console.error('Token verification failed:', err);
+        return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    }
+
+    // 2. 取得 CWA API Key
+    let cwaApiKey = null;
+    try {
+        const cwaDoc = await admin.firestore().collection('settings').doc('cwa').get();
+        if (cwaDoc.exists) {
+            cwaApiKey = cwaDoc.data().cwaApiKey || null;
+        }
+    } catch (err) {
+        console.warn("Read settings/cwa failed:", err);
+    }
+
+    if (!cwaApiKey) {
+        try {
+            const keysDoc = await admin.firestore().collection('settings').doc('keys').get();
+            if (keysDoc.exists) {
+                cwaApiKey = keysDoc.data().cwaApiKey || null;
+            }
+        } catch (dbErr) {
+            console.error('Failed to read CWA Key from Firestore keys:', dbErr);
+        }
+    }
+
+    if (!cwaApiKey) {
+        console.error('Missing CWA API Key in Firestore');
+        return res.status(500).json({ error: 'Internal Server Error: Missing CWA API Key' });
+    }
+
+    // 3. 從氣象署平行抓取三個 API
+    const rainUrl = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0002-001?Authorization=${cwaApiKey}&format=JSON`;
+    const windUrl = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=${cwaApiKey}&format=JSON`;
+    const warningUrl = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0034-001?Authorization=${cwaApiKey}&format=JSON`;
+
+    try {
+        const [rainRes, windRes, warnRes] = await Promise.all([
+            fetch(rainUrl).then(r => r.ok ? r.json() : { error: true, status: r.status }).catch(e => ({ error: true, msg: e.message })),
+            fetch(windUrl).then(r => r.ok ? r.json() : { error: true, status: r.status }).catch(e => ({ error: true, msg: e.message })),
+            fetch(warningUrl).then(r => r.ok ? r.json() : { error: true, status: r.status }).catch(e => ({ error: true, msg: e.message }))
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            rain: rainRes,
+            wind: windRes,
+            warning: warnRes
+        });
+    } catch (err) {
+        console.error('Failed to fetch CWA data:', err);
+        return res.status(500).json({ error: 'Failed to communicate with CWA API' });
+    }
+});
+

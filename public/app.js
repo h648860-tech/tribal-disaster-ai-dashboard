@@ -1,6 +1,6 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.39";
+const CURRENT_VERSION = "2.5.47";
 
 // 避難名冊之收容所過濾全域變數
 let selectedEvacShelterFilterId = null;
@@ -920,7 +920,6 @@ function initWarningSystem() {
     }
 
     async function fetchRainfallData() {
-        const apiKey = globalApiKeys.cwaApiKey || "";
         const [stationId, stationName] = savedAlertStation.split('|');
         
         // 更新 UI 標題
@@ -933,17 +932,25 @@ function initWarningSystem() {
             warningRain1hLbl.textContent = `${stationName} 1H 降雨量`;
         }
         
-        // If no api key is found, fallback to simulated safe rain (15 ~ 45mm)
-        if (!apiKey) {
-            const simulatedRain = 15.0 + Math.random() * 30.0;
-            const simulatedRain1h = 0.5 + Math.random() * 4.0;
-            updateWarningLevel(simulatedRain, simulatedRain1h);
+        // 如果使用者未登入，不顯示模擬數值，避免誤認為中央氣象署同步資料。
+        if (!auth || !auth.currentUser) {
+            setWarningDataUnavailable("需登入後才能同步中央氣象署雨量資料");
             return;
         }
 
         try {
-            const rainUrl = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0002-001?Authorization=${apiKey}&format=JSON`;
-            const res = await fetch(rainUrl);
+            let token = "";
+            if (auth && auth.currentUser) {
+                token = await auth.currentUser.getIdToken();
+            }
+
+            const res = await fetch('/api/fetchCwaData', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
             if (!res.ok) {
                 throw new Error(`HTTP ${res.status}`);
             }
@@ -951,8 +958,8 @@ function initWarningSystem() {
             
             let rain24h = null;
             let rain1h = null;
-            if (data && data.records && data.records.Station) {
-                const s = data.records.Station.find(st => st.StationId === stationId || st.StationName === stationName);
+            if (data && data.success && data.rain && data.rain.records && data.rain.records.Station) {
+                const s = data.rain.records.Station.find(st => st.StationId === stationId || st.StationName === stationName);
                 if (s) {
                     const past24 = s.RainfallElement && (s.RainfallElement.Past24hr || s.RainfallElement.Past24Hr);
                     if (past24 && past24.Precipitation !== undefined) {
@@ -979,14 +986,30 @@ function initWarningSystem() {
                 throw new Error(`無法定位${stationName}雨量數據`);
             }
         } catch (error) {
-            console.warn("自動抓取雨量失敗，啟用模擬數值:", error.message);
-            // 在警告訊息中加入具體 API 連線錯誤提示
-            const warningTimeText = document.getElementById('warningTimeText');
-            if (warningTimeText) {
-                warningTimeText.innerHTML = `<span style="color: var(--color-warning); font-size: 0.75rem;">⚠️ CWA API 連線異常 (${error.message})，已切換至備援模擬值</span>`;
-            }
-            updateWarningLevel(18.5, 2.5);
+            console.warn("自動抓取雨量失敗，未套用模擬數值:", error.message);
+            setWarningDataUnavailable(`CWA API 連線異常 (${error.message})，未同步官方雨量資料`);
         }
+    }
+
+    function setWarningDataUnavailable(message) {
+        const warningBanner = document.getElementById('warningBanner');
+        const warningLevelTitle = document.getElementById('warningLevelTitle');
+        const warningLevelDesc = document.getElementById('warningLevelDesc');
+        const warningRainVal = document.getElementById('warningRainVal');
+        const warningRain1hVal = document.getElementById('warningRain1hVal');
+        const warningTimeText = document.getElementById('warningTimeText');
+
+        if (warningBanner) {
+            warningBanner.className = 'warning-banner status-warning';
+        }
+        if (warningLevelTitle) warningLevelTitle.textContent = "官方資料未同步";
+        if (warningLevelDesc) warningLevelDesc.textContent = message;
+        if (warningRainVal) warningRainVal.innerHTML = `-- <span class="unit">mm</span>`;
+        if (warningRain1hVal) warningRain1hVal.innerHTML = `-- <span class="unit">mm</span>`;
+        if (warningTimeText) {
+            warningTimeText.innerHTML = `<span style="color: var(--color-warning); font-size: 0.75rem;">${message}</span>`;
+        }
+        silenceEmergencyAlarm();
     }
 
     // Helper: Find value in deep JSON
@@ -2818,7 +2841,6 @@ function initTyphoonData() {
         modalResults.classList.add('hidden');
         loadingText.textContent = "正在向中央氣象署要求即時數據...";
 
-        const apiKey = globalApiKeys.cwaApiKey || "";
         const { rainId, rainName, windId, windName } = getSelectedStations();
         
         // 更新 UI 標題
@@ -2829,27 +2851,39 @@ function initTyphoonData() {
         if (rain1hTitleEl) rain1hTitleEl.textContent = `🌧️ ${rainName} 1H 降雨量`;
         if (windTitleEl) windTitleEl.textContent = `💨 ${windName} 最大陣風資料`;
 
-        // If no API Key is provided, use simulated high-quality current CWA data
-        if (!apiKey) {
-            setTimeout(() => {
-                renderSimulatedData(rainName, windName);
-            }, 1500);
+        // If not logged in, do not show simulated weather data as official data.
+        if (!auth || !auth.currentUser) {
+            renderCwaUnavailableData(rainName, windName, "需登入後才能同步中央氣象署風雨資料");
             return;
         }
 
         try {
-            // Setup CWA Endpoints
-            const rainUrl = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0002-001?Authorization=${apiKey}&format=JSON`;
-            const windUrl = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=${apiKey}&format=JSON`;
-            const warningUrl = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0034-001?Authorization=${apiKey}&format=JSON`;
+            loadingText.textContent = "與中央氣象署連線中 (透過雲端安全代理)...";
+            
+            let token = "";
+            if (auth && auth.currentUser) {
+                token = await auth.currentUser.getIdToken();
+            }
 
-            // Parallel fetching
-            loadingText.textContent = "與中央氣象署連線中 (API 請求)...";
-            const [rainRes, windRes, warnRes] = await Promise.all([
-                fetch(rainUrl).then(r => r.json()).catch(e => ({ error: true, msg: e.message })),
-                fetch(windUrl).then(r => r.json()).catch(e => ({ error: true, msg: e.message })),
-                fetch(warningUrl).then(r => r.json()).catch(e => ({ error: true, msg: e.message }))
-            ]);
+            const res = await fetch('/api/fetchCwaData', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}`);
+            }
+            
+            const rawData = await res.json();
+            if (!rawData.success) {
+                throw new Error(rawData.error || "API backend failure");
+            }
+
+            const rainRes = rawData.rain;
+            const windRes = rawData.wind;
+            const warnRes = rawData.warning;
 
             // 1. Process Rain Data & Cache all stations
             let rain24h = null;
@@ -2906,12 +2940,29 @@ function initTyphoonData() {
 
             // 3. Process Typhoon Warning
             let warnDesc = "目前西北太平洋無發布中之颱風警報。";
-            if (warnRes && warnRes.records && warnRes.records.dataset) {
-                const dataset = warnRes.records.dataset;
-                const info = dataset.datasetInfo?.datasetDescription || "";
-                const content = findValByKey(dataset, "content") || findValByKey(dataset, "text") || "";
-                if (info || content) {
-                    warnDesc = `【${info}】\n${content.substring(0, 300)}... (點擊氣象署網頁查看完整內容)`;
+            if (warnRes && warnRes.records && Array.isArray(warnRes.records.info) && warnRes.records.info.length > 0) {
+                const warningBlocks = warnRes.records.info.map((ds, index) => {
+                    const params = Array.isArray(ds.parameter) ? ds.parameter : [];
+                    const severity = params.find(p => p.valueName === "severity_level")?.value || "";
+                    const title = ds.datasetDescription || ds.hazardConditions?.hazards?.hazard?.info?.headline || `颱風警報 ${index + 1}`;
+                    const sections = Array.isArray(ds.description?.section) ? ds.description.section : [];
+                    const sectionsText = sections
+                        .map(sec => {
+                            const sectionTitle = sec.title || "警報內容";
+                            const sectionValue = Array.isArray(sec.value) ? sec.value.join('\n') : (sec.value || "");
+                            return `【${sectionTitle}】\n${sectionValue}`;
+                        })
+                        .filter(Boolean)
+                        .join('\n\n');
+
+                    return [
+                        `🚨 ${severity || title || "颱風警報發布中"}`,
+                        sectionsText || ds.description?.content || ds.content || ""
+                    ].filter(Boolean).join('\n\n');
+                }).filter(Boolean);
+
+                if (warningBlocks.length > 0) {
+                    warnDesc = warningBlocks.join('\n\n---------------------------\n\n');
                 }
             }
 
@@ -2924,10 +2975,7 @@ function initTyphoonData() {
 
         } catch (error) {
             console.warn(error.message);
-            loadingText.textContent = `⚠️ API 連線失敗 (${error.message})，正在切換為本地模擬防災數據...`;
-            setTimeout(() => {
-                renderSimulatedData(rainName, windName);
-            }, 3000);
+            renderCwaUnavailableData(rainName, windName, `API 連線失敗 (${error.message})，未同步官方風雨資料`);
         }
     }
 
@@ -3048,57 +3096,57 @@ function initTyphoonData() {
             windStatus.style.color = "";
         }
 
-        typhoonNews.textContent = warning;
+        if (typhoonNews) typhoonNews.textContent = warning;
 
         // Compile LINE formatted message
-        const summary = compileLineSummary(rain1h, rain24h, gust, warning, false, rainName, windName);
+        const summary = compileLineSummary(rain1h, rain24h, gust, warning, rainName, windName);
         lineSummaryText.value = summary;
 
         // 移除在 AI 減災助理聊天對話框中顯示防汛通報氣泡
         // triggerAICopilotBroadcast(summary);
     }
 
-    // Render Simulated Data
-    function renderSimulatedData(rainName, windName) {
+    function renderCwaUnavailableData(rainName, windName, reason) {
         modalLoading.classList.add('hidden');
         modalResults.classList.remove('hidden');
-
-        const simRain1h = 42.5;
-        const simRain = 342.5;
-        const simGust = 30.2;
-        const simWarning = "【強烈颱風瑪娃海陸上警報】\n目前颱風中心在鵝鑾鼻東南方 280 公里處，向西北西移動。其暴風圈已覆蓋台東及恆春半島，預計未來 24 小時花東山區將迎來劇烈雨勢，累積雨量可達 500mm 以上。請東半部及南部山區居民做好土石流防範準備！";
 
         const rain1hVal = document.getElementById('rain1hVal');
         const rain1hStatus = document.getElementById('rain1hStatus');
         if (rain1hVal && rain1hStatus) {
-            rain1hVal.innerHTML = `${simRain1h.toFixed(1)} <span class="unit">mm</span>`;
-            rain1hStatus.textContent = "🔴 警戒：短時強降雨警戒！";
-            rain1hStatus.style.color = "#e63946";
-            rain1hVal.style.color = "#e63946";
+            rain1hVal.textContent = "未同步";
+            rain1hVal.style.color = "";
+            rain1hStatus.textContent = "未取得中央氣象署 1H 雨量資料。";
+            rain1hStatus.style.color = "";
         }
 
-        rainVal.innerHTML = `${simRain.toFixed(1)} <span class="unit">mm</span>`;
-        rainStatus.textContent = "🔴 警戒：已突破超大豪雨臨界值！";
-        rainStatus.style.color = "#e63946";
-        rainVal.style.color = "#e63946";
+        if (rainVal && rainStatus) {
+            rainVal.textContent = "未同步";
+            rainVal.style.color = "";
+            rainStatus.textContent = "未取得中央氣象署 24H 累積雨量資料。";
+            rainStatus.style.color = "";
+        }
 
-        const b = toBeaufort(simGust);
-        windVal.innerHTML = `${b} <span class="unit">級 (${simGust.toFixed(1)} m/s)</span>`;
-        windStatus.textContent = "🔴 警告：11級狂風！道路有樹倒與鐵皮吹飛危險！";
-        windStatus.style.color = "#e63946";
-        windVal.style.color = "#e63946";
+        if (windVal && windStatus) {
+            windVal.textContent = "未同步";
+            windVal.style.color = "";
+            windStatus.textContent = "未取得中央氣象署風速資料。";
+            windStatus.style.color = "";
+        }
 
-        typhoonNews.textContent = simWarning;
-
-        const summary = compileLineSummary(simRain1h, simRain, simGust, simWarning, true, rainName, windName);
-        lineSummaryText.value = summary;
-
-        // 移除在 AI 減災助理聊天對話框中顯示防汛通報氣泡
-        // triggerAICopilotBroadcast(summary);
+        if (typhoonNews) typhoonNews.textContent = reason;
+        if (lineSummaryText) {
+            lineSummaryText.value = [
+                "中央氣象署資料未同步",
+                `雨量測站：${rainName}`,
+                `風速測站：${windName}`,
+                `原因：${reason}`,
+                "本畫面未套用模擬雨量或風速資料。"
+            ].join('\n');
+        }
     }
 
     // Format the text specifically for LINE transmission
-    function compileLineSummary(rain1h, rain24h, gust, warning, isSimulated, rainName, windName) {
+    function compileLineSummary(rain1h, rain24h, gust, warning, rainName, windName) {
         const now = new Date();
         const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         
@@ -3115,17 +3163,17 @@ function initTyphoonData() {
         if (gust >= 17.2) gustStr += " ⚠️ (強烈陣風警戒)";
 
         return `⚠️【部落防汛警戒通報】⚠️
-發布時間：${timeStr}${isSimulated ? ' (模擬氣象站即時數據)' : ''}
+發布時間：${timeStr}
 ---------------------------
 📍 關鍵測站監測數據：
 1. 🌧️ ${rainName} (1H降雨量)：${rain1hStr}
 2. 🌧️ ${rainName} (24H累積降雨)：${rain24hStr}
 3. 💨 ${windName} (最大陣風)：${gustStr}
  
-🌀 最新颱風動態摘要：
-${warning.substring(0, 180)}...
+🌀 最新颱風警報完整資訊：
+${warning}
 ---------------------------
-本訊息由${currentUserVillage}自主防災編組彙整發送`;
+本訊息由${currentUserVillage}自主防災編組彙整發送，資料來源：中央氣象署`;
     }
 
     // Feed CWA summary into Chatbot automatically
@@ -5287,4 +5335,3 @@ function initRainfallGaugeSystem() {
         }
     });
 }
-

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>凱芳防災協助系統 - 營運成本估算報告</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", "Helvetica Neue", Arial, sans-serif;
+            color: #333;
+            line-height: 1.6;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+        }
+        .header {
+            border-bottom: 3px solid #06b6d4;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .title {
+            color: #0891b2;
+            font-size: 26px;
+            font-weight: bold;
+            margin: 0;
+        }
+        .date {
+            color: #666;
+            font-size: 14px;
+        }
+        .section-title {
+            color: #0f172a;
+            font-size: 18px;
+            border-left: 5px solid #0891b2;
+            padding-left: 10px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 12px 15px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .highlight-text {
+            color: #0891b2;
+            font-weight: bold;
+        }
+        .summary-card {
+            background-color: #ecfeff;
+            border: 1px solid #cffafe;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .summary-card p {
+            margin: 8px 0;
+        }
+        .footer {
+            margin-top: 50px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+            font-size: 12px;
+            color: #94a3b8;
+            text-align: center;
+        }
+        @media print {
+            body {
+                padding: 20px;
+                background-color: #fff;
+            }
+            .summary-card {
+                background-color: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1 class="title">凱芳防災協助系統</h1>
+            <div style="font-size: 14px; color: #666; margin-top: 5px;">系統營運成本估算報告 (v2.5.39)</div>
+        </div>
+        <div class="date">製表日期：2026 年 6 月 23 日</div>
+    </div>
+
+    <div class="section-title">二、各項雲端服務成本明細</div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 25%;">服務項目</th>
+                <th style="width: 35%;">🎁 每月免費額度</th>
+                <th style="width: 40%;">💸 超額後計費費率 (台幣)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><b>Google Gemini API</b><br><span style="font-size: 11px; color:#666;">(gemini-2.5-flash)</span></td>
+                <td>• 每天最多 <b>1,500 次</b> 提問<br>• 每分鐘最多 <b>15 次</b> 提問</td>
+                <td>• 輸入：每 100 萬字約 <span class="highlight-text">台幣 2.4 元</span><br>• 輸出：每 100 萬字約 <span class="highlight-text">台幣 9.6 元</span><br><span style="font-size: 11px; color:#666;">(平均台幣 100 元可問 1 萬次)</span></td>
+            </tr>
+            <tr>
+                <td><b>Google Geocoding</b><br><span style="font-size: 11px; color:#666;">(地址經緯度定位)</span></td>
+                <td>• 每月最多 <b>40,000 次</b> 查詢<br><span style="font-size: 11px; color:#666;">(每月贈送 $200 美元抵用金)</span></td>
+                <td>• 超過後，每 1,000 次約 <span class="highlight-text">台幣 160 元</span><br><span style="font-size: 11px; color:#666;">(單次定位費用僅約台幣 0.16 元)</span></td>
+            </tr>
+            <tr>
+                <td><b>Cloud Firestore</b><br><span style="font-size: 11px; color:#666;">(NoSQL 資料庫)</span></td>
+                <td>• 空間上限 <b>1 GB</b><br>• 讀取：每天 <b>50,000 次</b><br>• 寫入：每天 <b>20,000 次</b></td>
+                <td>• 儲存：每 GB/月約 <span class="highlight-text">台幣 5.8 元</span><br>• 讀寫：每 10 萬次約 <span class="highlight-text">台幣 1.9 元</span></td>
+            </tr>
+            <tr>
+                <td><b>Firebase Hosting</b><br><span style="font-size: 11px; color:#666;">(網頁託管與防禦)</span></td>
+                <td>• 儲存空間 <b>10 GB</b><br>• 下載流量每月 <b>10 GB</b></td>
+                <td>• 流量超額：每 GB 約 <span class="highlight-text">台幣 4.8 元</span></td>
+            </tr>
+            <tr>
+                <td><b>Cloud Functions</b><br><span style="font-size: 11px; color:#666;">(後端 API 安全代理)</span></td>
+                <td>• 每月 <b>200 萬次</b> 呼叫額度</td>
+                <td>• 超額：每 100 萬次約 <span class="highlight-text">台幣 12.8 元</span></td>
+            </tr>
+            <tr>
+                <td><b>地圖、語音與 NFC</b><br><span style="font-size: 11px; color:#666;">(Leaflet, Google衛星圖)</span></td>
+                <td>• <b>永久 100% 免費</b></td>
+                <td>• 無任何付費與扣款機制</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="section-title">二、實際營運場景估算 (以「全台 50 個偏鄉部落」為例)</div>
+    <div class="summary-card">
+        <p>💡 <b>情境設定</b>：全台共 50 個偏鄉部落/自主防災社區導入此系統，平均每個部落每天進行 10 次 AI 防災助理對話，並執行 5 次保全戶地址定位比對。</p>
+        <p>1. <b>AI 助理費用</b>：每月總提問數約 15,000 次。
+           <br>&nbsp;&nbsp;&nbsp;&nbsp;• <i>自備金鑰模式 (推薦)</i>：由各部落獨立註冊，<b>全部為 0 元 (完全免費)</b>。
+           <br>&nbsp;&nbsp;&nbsp;&nbsp;• <i>統一付費模式</i>：由你統一以一張付費 Key 買單，每月費用僅約 <span class="highlight-text">台幣 150 元</span>。</p>
+        <p>2. <b>地址定位費用</b>：每月總定位數約 7,500 次。
+           <br>&nbsp;&nbsp;&nbsp;&nbsp;• 遠低於 Google 每月 40,000 次的免費額度，<b>折抵後月帳單為 0 元</b>。</p>
+        <p>3. <b>資料庫與網頁流量</b>：偏鄉保全戶名冊規模小，每月讀寫數低於免費額度，<b>月帳單為 0 元</b>。</p>
+    </div>
+
+    <div class="section-title">三、核心結論</div>
+    <p>本系統在架構設計上採用了<b>「分散式免費額度極大化」</b>原則。若採取<b>「自備金鑰 (BYOK)」模式</b>推廣，你作為平台提供者，**完全不需支付 any 雲端運行成本 (0元)**，且每個部落均能在 Google 與 Firebase 的免費額度保護傘下，享有 100% 穩定且高安全性的防災防線。</p>
+
+    <div class="footer">
+        © 2026 凱芳智能管理顧問企業社 版權所有
+    </div>
+
+</body>
+</html>

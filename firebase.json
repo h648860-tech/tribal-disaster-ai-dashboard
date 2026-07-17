@@ -32,6 +32,15 @@
         ]
       },
       {
+        "source": "/version.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
         "source": "**/*.html",
         "headers": [
           {
@@ -49,6 +58,10 @@
       {
         "source": "/api/geocode",
         "function": "geocode"
+      },
+      {
+        "source": "/api/fetchCwaData",
+        "function": "fetchCwaData"
       }
     ]
   }

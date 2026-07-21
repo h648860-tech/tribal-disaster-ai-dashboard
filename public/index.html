@@ -225,7 +225,14 @@
                                 <label for="smtpPassword">SMTP 應用程式密碼 (Google App Password 16碼)：</label>
                                 <input type="password" id="smtpPassword" class="custom-input" placeholder="輸入 16 碼 Google 應用程式密碼 (無空格)..." style="width: 100%; background: #08090c; border: 1px solid rgba(255, 255, 255, 0.1); color: #ffffff; padding: 0.75rem; border-radius: 8px;">
                             </div>
-                            <button class="btn btn-accent btn-full" id="btnSaveSettings" style="margin-top: 2rem;">💾 儲存金鑰設定</button>
+                            <div class="setting-item" style="margin-top: 1.5rem;">
+                                <label for="photoReportPrompt">📸 現場照片 LINE 簡易通報 AI 提示詞 (Prompt Template)：</label>
+                                <textarea id="photoReportPrompt" class="custom-textarea" rows="6" placeholder="請輸入生成 LINE 通報文案的 AI 提示詞指令..." style="width: 100%; background: #08090c; border: 1px solid rgba(255, 255, 255, 0.1); color: #ffffff; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; line-height: 1.5;"></textarea>
+                                <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 0.25rem;">
+                                    💡 提示：前端使用者上傳現場照片後，AI 將依據此提示詞分析照片並生成適合發送到 LINE 群組的速報文案。
+                                </div>
+                            </div>
+                            <button class="btn btn-accent btn-full" id="btnSaveSettings" style="margin-top: 2rem;">💾 儲存金鑰與提示詞設定</button>
                         </div>
                     </div>
 
@@ -285,6 +292,9 @@
                 <div class="status-badges">
                     <button class="btn btn-accent" id="btnTyphoonData" style="background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); border: none; box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);">
                         🌀 一鍵取得颱風資料
+                    </button>
+                    <button class="btn btn-outline" id="btnPhotoReport" style="border-color: #f59e0b; color: #f59e0b; background: rgba(245, 158, 11, 0.1); box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15);">
+                        📸 現場照片 LINE 通報生成
                     </button>
                     <button class="btn btn-outline" id="btnOpenCctv" style="border-color: var(--color-cyan); color: var(--color-cyan);">
                         🎥 即時監控 CCTV
@@ -637,6 +647,67 @@
                                         📋 複製通報文本
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PHOTO LINE REPORT MODAL -->
+    <div class="modal" id="photoReportModal">
+        <div class="modal-content glass-bg-modal" style="max-width: 1100px; width: 95vw;">
+            <div class="modal-header">
+                <h2>📸 現場照片 AI LINE 簡易通報生成</h2>
+                <button class="close-btn" id="btnClosePhotoReportModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;" class="photo-report-grid">
+                    <!-- LEFT: PHOTO UPLOAD & PREVIEW & EXTRA TEXT -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="setting-item" style="margin-bottom:0;">
+                            <label style="font-weight: 600; color: var(--color-cyan); margin-bottom: 0.5rem; display: block;">1. 選擇或拍攝現場災害照片：</label>
+                            <div id="dropZone" style="border: 2px dashed rgba(6, 182, 212, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center; background: rgba(8, 9, 12, 0.6); cursor: pointer; transition: all 0.3s ease; position: relative;">
+                                <input type="file" id="photoFileInput" accept="image/*" style="display: none;">
+                                <div id="uploadPrompt">
+                                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📷</div>
+                                    <div style="font-size: 0.9rem; color: #ffffff; font-weight: 600;">點擊選擇照片 或 將照片拖曳至此</div>
+                                    <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 0.25rem;">支援 JPG, PNG, WEBP 等影像格式</div>
+                                </div>
+                                <div id="photoPreviewContainer" class="hidden" style="position: relative;">
+                                    <img id="photoPreviewImg" src="" alt="現場照片預覽" style="max-width: 100%; max-height: 280px; border-radius: 8px; object-fit: contain; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+                                    <button id="btnRemovePhoto" class="btn" style="position: absolute; top: 8px; right: 8px; background: rgba(230,57,70,0.85); color: #fff; border: none; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 6px; cursor: pointer;">✕ 重新選擇</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-item" style="margin-bottom:0;">
+                            <label for="photoLocationInput" style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 0.25rem; display: block;">現場地點 / 備註說明 (選填)：</label>
+                            <input type="text" id="photoLocationInput" class="custom-input" placeholder="例如：台9線422K處、土坂村高號防汛道..." style="width:100%; font-size:0.85rem; padding:0.6rem; background: #08090c; border: 1px solid rgba(255,255,255,0.1); color: #ffffff; border-radius: 6px;">
+                        </div>
+
+                        <button id="btnGeneratePhotoReport" class="btn btn-accent" style="padding: 0.8rem; font-size: 1rem; font-weight: 700; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border: none; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); opacity: 0.6; cursor: not-allowed;" disabled>
+                            ⚡ 產生 LINE 簡易通報文案
+                        </button>
+                    </div>
+
+                    <!-- RIGHT: GENERATED LINE TEXT -->
+                    <div style="display: flex; flex-direction: column;">
+                        <div class="card-mini" style="height: 100%; display: flex; flex-direction: column; margin-bottom: 0; background: rgba(8, 9, 12, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 1rem;">
+                            <h3 style="font-size: 0.95rem; color: #10b981; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                💬 LINE 簡易通報文案預覽
+                            </h3>
+                            <div id="photoReportLoading" class="hidden text-center" style="padding: 3rem 1rem;">
+                                <div class="spinner" style="margin: 0 auto 1rem auto;"></div>
+                                <div style="color: var(--color-cyan); font-weight: 600;">🤖 AI 正在辨識照片畫面並撰寫速報中...</div>
+                                <div style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 0.5rem;">分析受損狀況、影響評估與防範建議</div>
+                            </div>
+                            <textarea id="photoReportOutput" class="custom-textarea" readonly placeholder="點擊「產生 LINE 簡易通報文案」後，AI 會在此自動輸出排版好的 LINE 訊息..." style="flex-grow: 1; min-height: 260px; font-size: 0.9rem; line-height: 1.6; color: #34d399; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 0.75rem;"></textarea>
+                            <div style="margin-top: 0.75rem;">
+                                <button class="btn btn-outline" id="btnCopyPhotoReportText" style="width: 100%; padding: 0.75rem; font-size: 0.9rem; border-color: #10b981; color: #10b981; cursor: pointer;">
+                                    📋 複製通報文案
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1123,6 +1194,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=2.5.47"></script>
+    <script src="app.js?v=2.5.48"></script>
 </body>
 </html>

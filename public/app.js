@@ -1,6 +1,20 @@
 // Tribal Emergency AI Dashboard App Logic
 
-const CURRENT_VERSION = "2.5.47";
+const CURRENT_VERSION = "2.5.48";
+
+const DEFAULT_PHOTO_REPORT_PROMPT = `你是一位經驗豐富的自主防災應變專家與情報專員。請分析使用者上傳的現場照片，辨識畫面中的災害情況（例如土石流、路樹倒塌、道路塌陷、淹水溢流、建物受損、高壓電線斷落等）。
+
+請依據照片觀察與使用者提供的現場備註，產出一份結構清晰、語氣專業且適合立刻發送到 LINE 防災群組的「現場災害照片速報」。
+
+發佈格式要求：
+⚠️【現場災害照片速報】⚠️
+📍 狀況地點：{地點說明}
+📸 現場畫面觀察：{描述照片中看到的具體損壞或災害景象}
+⚠️ 危害等級與風險：{評估潛在風險，如對人車通行的影響}
+💡 防災應變建議：{提供防災編組及民眾應採取的警戒或撤離建議}
+---------------------------
+發送時間：{時間}
+本訊息由自主防災編組彙整發送`;
 
 // 避難名冊之收容所過濾全域變數
 let selectedEvacShelterFilterId = null;
@@ -265,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initResidentsDatabase();
     initSheltersDatabase();
     initRainfallGaugeSystem();
+    initPhotoReportController();
 });
 
 // 全域彈跳視窗滾動鎖定輔助函式
@@ -2221,8 +2236,22 @@ function initAuthSystem() {
                 geminiApiKeyInput.value = doc.data().geminiApiKey || "";
                 if (tgosAppIdInput) tgosAppIdInput.value = doc.data().tgosAppId || "";
                 if (tgosApiKeyInput) tgosApiKeyInput.value = doc.data().tgosApiKey || "";
+                const smtpPasswordInput = document.getElementById('smtpPassword');
+                const googleGeocodingApiKeyInput = document.getElementById('googleGeocodingApiKey');
+                const photoReportPromptInput = document.getElementById('photoReportPrompt');
                 if (smtpEmailInput) smtpEmailInput.value = doc.data().smtpEmail || "";
                 if (smtpPasswordInput) smtpPasswordInput.value = doc.data().smtpPassword || "";
+
+                db.collection('settings').doc('linePrompt').get().then(pDoc => {
+                    if (pDoc.exists && photoReportPromptInput) {
+                        photoReportPromptInput.value = pDoc.data().photoReportPrompt || DEFAULT_PHOTO_REPORT_PROMPT;
+                    } else if (photoReportPromptInput) {
+                        photoReportPromptInput.value = DEFAULT_PHOTO_REPORT_PROMPT;
+                    }
+                }).catch(e => {
+                    console.warn("載入 LINE 提示詞失敗:", e);
+                    if (photoReportPromptInput) photoReportPromptInput.value = DEFAULT_PHOTO_REPORT_PROMPT;
+                });
 
                 // 自動背景遷移：若 settings/cwa 尚未寫入，但在 settings/keys 中有備份，管理員載入時會自動補全
                 const backupCwaKey = doc.data().cwaApiKey;
@@ -2260,9 +2289,11 @@ function initAuthSystem() {
             const googleGeocodingKey = googleGeocodingApiKeyInput ? googleGeocodingApiKeyInput.value.trim() : "";
             const smtpMail = smtpEmailInput ? smtpEmailInput.value.trim() : "";
             const smtpPass = smtpPasswordInput ? smtpPasswordInput.value.trim() : "";
+            const photoReportPromptInput = document.getElementById('photoReportPrompt');
+            const photoPromptVal = photoReportPromptInput ? photoReportPromptInput.value.trim() : "";
 
             btnSaveSettings.disabled = true;
-            btnSaveSettings.textContent = "⏳ 正在儲存金鑰...";
+            btnSaveSettings.textContent = "⏳ 正在儲存金鑰與提示詞...";
 
             try {
                 // 分開儲存：cwaApiKey 寫入公開 settings/cwa，googleGeocodingApiKey 寫入 settings/google，其餘敏感金鑰寫入限 admin 存取之 settings/keys
@@ -2280,6 +2311,9 @@ function initAuthSystem() {
                     googleGeocodingApiKey: googleGeocodingKey,
                     smtpEmail: smtpMail,
                     smtpPassword: smtpPass
+                });
+                await db.collection('settings').doc('linePrompt').set({
+                    photoReportPrompt: photoPromptVal || DEFAULT_PHOTO_REPORT_PROMPT
                 });
                 
                 // 同步至記憶體
@@ -5335,3 +5369,237 @@ function initRainfallGaugeSystem() {
         }
     });
 }
+
+// 15. 現場照片 AI LINE 簡易通報生成 CONTROLLER
+function initPhotoReportController() {
+    const btnPhotoReport = document.getElementById('btnPhotoReport');
+    const photoReportModal = document.getElementById('photoReportModal');
+    const btnClosePhotoReportModal = document.getElementById('btnClosePhotoReportModal');
+    
+    const dropZone = document.getElementById('dropZone');
+    const photoFileInput = document.getElementById('photoFileInput');
+    const uploadPrompt = document.getElementById('uploadPrompt');
+    const photoPreviewContainer = document.getElementById('photoPreviewContainer');
+    const photoPreviewImg = document.getElementById('photoPreviewImg');
+    const btnRemovePhoto = document.getElementById('btnRemovePhoto');
+    const photoLocationInput = document.getElementById('photoLocationInput');
+    const btnGeneratePhotoReport = document.getElementById('btnGeneratePhotoReport');
+    const photoReportLoading = document.getElementById('photoReportLoading');
+    const photoReportOutput = document.getElementById('photoReportOutput');
+    const btnCopyPhotoReportText = document.getElementById('btnCopyPhotoReportText');
+
+    if (!photoReportModal || !btnPhotoReport) return;
+
+    let currentPhotoBase64 = null;
+    let currentPhotoMimeType = null;
+
+    btnPhotoReport.addEventListener('click', () => {
+        photoReportModal.classList.add('active');
+        toggleBodyScroll(true);
+    });
+
+    if (btnClosePhotoReportModal) {
+        btnClosePhotoReportModal.addEventListener('click', () => {
+            photoReportModal.classList.remove('active');
+            toggleBodyScroll(false);
+        });
+    }
+
+    photoReportModal.addEventListener('click', (e) => {
+        if (e.target === photoReportModal) {
+            photoReportModal.classList.remove('active');
+            toggleBodyScroll(false);
+        }
+    });
+
+    if (dropZone && photoFileInput) {
+        dropZone.addEventListener('click', (e) => {
+            if (e.target !== btnRemovePhoto) {
+                photoFileInput.click();
+            }
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = "var(--color-cyan)";
+            dropZone.style.background = "rgba(6, 182, 212, 0.1)";
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = "rgba(6, 182, 212, 0.4)";
+            dropZone.style.background = "rgba(8, 9, 12, 0.6)";
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = "rgba(6, 182, 212, 0.4)";
+            dropZone.style.background = "rgba(8, 9, 12, 0.6)";
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+
+        photoFileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+    }
+
+    function handleFileSelect(file) {
+        if (!file.type.startsWith('image/')) {
+            alert('請選擇圖片檔案（例如 JPG, PNG, WEBP）！');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            photoPreviewImg.src = dataUrl;
+            
+            const parts = dataUrl.split(',');
+            currentPhotoMimeType = parts[0].match(/:(.*?);/)[1];
+            currentPhotoBase64 = parts[1];
+
+            uploadPrompt.classList.add('hidden');
+            photoPreviewContainer.classList.remove('hidden');
+            btnGeneratePhotoReport.disabled = false;
+            btnGeneratePhotoReport.style.opacity = "1";
+            btnGeneratePhotoReport.style.cursor = "pointer";
+        };
+        reader.readAsDataURL(file);
+    }
+
+    if (btnRemovePhoto) {
+        btnRemovePhoto.addEventListener('click', (e) => {
+            e.stopPropagation();
+            photoFileInput.value = "";
+            currentPhotoBase64 = null;
+            currentPhotoMimeType = null;
+            photoPreviewImg.src = "";
+            photoPreviewContainer.classList.add('hidden');
+            uploadPrompt.classList.remove('hidden');
+            btnGeneratePhotoReport.disabled = true;
+            btnGeneratePhotoReport.style.opacity = "0.6";
+            btnGeneratePhotoReport.style.cursor = "not-allowed";
+        });
+    }
+
+    if (btnGeneratePhotoReport) {
+        btnGeneratePhotoReport.addEventListener('click', async () => {
+            if (!currentPhotoBase64) {
+                alert('請先選擇或拖曳上傳現場災害照片！');
+                return;
+            }
+
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                alert('請先登入系統後再使用 AI 生成功能！');
+                return;
+            }
+
+            btnGeneratePhotoReport.disabled = true;
+            btnGeneratePhotoReport.textContent = "⏳ AI 分析照片與撰寫中...";
+            photoReportLoading.classList.remove('hidden');
+            photoReportOutput.value = "";
+
+            try {
+                let promptTemplate = DEFAULT_PHOTO_REPORT_PROMPT;
+                try {
+                    const promptDoc = await db.collection('settings').doc('linePrompt').get();
+                    if (promptDoc.exists && promptDoc.data().photoReportPrompt) {
+                        promptTemplate = promptDoc.data().photoReportPrompt;
+                    }
+                } catch (pErr) {
+                    console.warn("讀取後台 prompt 設定失敗，使用預設範本:", pErr);
+                }
+
+                const idToken = await currentUser.getIdToken();
+                const locationInfo = photoLocationInput ? photoLocationInput.value.trim() : "";
+                let userMessageText = "請分析這張現場災害照片，並生成適合 LINE 群組的通報文案。";
+                if (locationInfo) {
+                    userMessageText += ` 現場地點與補充說明：${locationInfo}`;
+                }
+
+                const response = await fetch('/api/askGemini', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    body: JSON.stringify({
+                        systemInstruction: {
+                            parts: [{ text: promptTemplate }]
+                        },
+                        contents: [
+                            {
+                                role: 'user',
+                                parts: [
+                                    {
+                                        inline_data: {
+                                            mime_type: currentPhotoMimeType,
+                                            data: currentPhotoBase64
+                                        }
+                                    },
+                                    {
+                                        text: userMessageText
+                                    }
+                                ]
+                            }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`AI 服務回應錯誤 (HTTP ${response.status}): ${errText}`);
+                }
+
+                const data = await response.json();
+                let generatedText = "";
+                if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
+                    generatedText = data.candidates[0].content.parts.map(p => p.text).join('');
+                }
+
+                if (!generatedText) {
+                    throw new Error("AI 未回傳有效的分析內容，請稍後重試。");
+                }
+
+                photoReportOutput.value = generatedText;
+
+            } catch (err) {
+                console.error("生成照片 LINE 通報失敗:", err);
+                alert("生成失敗：" + err.message);
+                photoReportOutput.value = "⚠️ 生成失敗，請確認 API 金鑰是否正確或稍後重試。\n錯誤訊息：" + err.message;
+            } finally {
+                photoReportLoading.classList.add('hidden');
+                btnGeneratePhotoReport.disabled = false;
+                btnGeneratePhotoReport.textContent = "⚡ 產生 LINE 簡易通報文案";
+            }
+        });
+    }
+
+    if (btnCopyPhotoReportText) {
+        btnCopyPhotoReportText.addEventListener('click', () => {
+            const text = photoReportOutput.value;
+            if (!text.trim()) {
+                alert('目前沒有可複製的文案！');
+                return;
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btnCopyPhotoReportText.innerHTML;
+                btnCopyPhotoReportText.innerHTML = "✅ 已成功複製文案！";
+                btnCopyPhotoReportText.style.borderColor = "#10b981";
+                btnCopyPhotoReportText.style.color = "#10b981";
+                setTimeout(() => {
+                    btnCopyPhotoReportText.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                alert('複製失敗，請手動選取文字複製。');
+            });
+        });
+    }
+}
+
